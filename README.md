@@ -50,7 +50,7 @@ Echte Geräteabnahme zwischen iPhone, Mac und Windows bleibt erforderlich. Ein e
 
 Liblinphone 5.5.23 bleibt die einzige Telefonie-Engine. Team, Profile, Präsenz, Anrufhistorie, Weiterleitungen, Anmeldung und Audioverarbeitung bleiben erhalten. Der Kontoserver wird separat verwaltet.
 
-Die [iOS-App](https://github.com/ivama-dev/fonado-ai-ios) ist die Referenz für die gemeinsamen Dateien. Mit `python3 scripts/sync-shared-from-ios.py --source ../fonado-ai-ios --check` lässt sich ihr Stand vergleichen. Ohne `--check` werden freigegebene Änderungen übernommen; lokal geänderte gemeinsame Dateien werden nicht überschrieben. Anschließend beide Apps bauen und ihre Prüfungen ausführen. Die Herkunft und Dateihashes stehen in `Shared/upstream.json`.
+Die [iOS-App](https://github.com/ivama-dev/fonado-ios) ist die Referenz für die gemeinsamen Dateien. Mit `python3 scripts/sync-shared-from-ios.py --source ../fonado-ios --check` lässt sich ihr Stand vergleichen. Ohne `--check` werden freigegebene Änderungen übernommen; lokal geänderte gemeinsame Dateien werden nicht überschrieben. Anschließend beide Apps bauen und ihre Prüfungen ausführen. Die Herkunft und Dateihashes stehen in `Shared/upstream.json`.
 
 Die [Mac-Oberfläche als Referenz für Windows](macos/WINDOWS-UI-REFERENZ.md) bleibt enthalten.
 
