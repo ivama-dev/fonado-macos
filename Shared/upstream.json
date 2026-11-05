@@ -25,7 +25,7 @@
     {
       "source": "ios/FonadoAI/CustomerAccount.swift",
       "destination": "Shared/CustomerAccount.swift",
-      "sha256": "fbc45b4ab459d0f8da6abe7abbfdd830be0e21abdb4b8b729d9cac88c0d0a617"
+      "sha256": "49830579549060a8cc3e00c8e27e53c3298781fb4f63c50d864d85df02c59279"
     },
     {
       "source": "ios/FonadoAI/DeviceContact.swift",
@@ -95,17 +95,17 @@
     {
       "source": "ios/FonadoAI/TeamMember.swift",
       "destination": "Shared/TeamMember.swift",
-      "sha256": "0e19572ff4af2d9ce4cf6a741b23eb4895bac220b3132ded77ff97c22fb0f11f"
+      "sha256": "c9f59463e953084056e0e130e427da44c513d0aed3866e45bbae136c5a7e55c4"
     },
     {
       "source": "ios/FonadoAI/TeamPreview.swift",
       "destination": "Shared/TeamPreview.swift",
-      "sha256": "5e149b9667d20dd0e69e69e4bc42066edd826e3684bcdae8dfc0ce108599949c"
+      "sha256": "3cefc0c73e8536cb7f14b41d5613a1f12ebdadc953925a01fc20d49cbdb301f7"
     },
     {
       "source": "ios/FonadoAI/TeamView.swift",
       "destination": "Shared/TeamView.swift",
-      "sha256": "77c5f1ade967540e2be3d7cc45e1dee397a0688c69336c9755b3fed741ee6a58"
+      "sha256": "8031ef68d60e1d784eef6d015c1e57e178983d9b971666b2f5d8bdf2659dba23"
     },
     {
       "source": "ios/FonadoAI/FavoriteGroups.swift",

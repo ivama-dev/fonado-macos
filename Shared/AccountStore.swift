@@ -7,7 +7,7 @@ final class AccountStore {
     private struct StoredAccount: Codable { let account: SIPAccount; let password: String; let turnPassword: String? }
     private var query: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: (Bundle.main.bundleIdentifier ?? "Javi") + ".sip",
+         kSecAttrService as String: (Bundle.main.bundleIdentifier ?? "Fonado") + ".sip",
          kSecAttrAccount as String: "primary"]
     }
     func load() throws -> (SIPAccount, String, String)? {

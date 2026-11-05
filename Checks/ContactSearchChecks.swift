@@ -15,6 +15,8 @@ struct ContactSearchChecks {
         let duplicate = DeviceContact(id: "other", name: "Anderer Kontakt", numbers: [mobile])
         precondition(DeviceContact.resolvedContact(in: [person, duplicate], number: mobile.value) == nil)
         precondition(DeviceContact.resolvedContact(in: [person], number: "500") == nil)
+        precondition(DeviceContact.resolvedContact(in: [person], number: "0664 1234567")?.name == person.name)
+        precondition(DeviceContact.resolvedContact(in: [person], number: " ") == nil)
         precondition(person.matches("MULLER"))
         precondition(person.matches("  Anna  "))
         precondition(person.matches("66412345"))

@@ -6,11 +6,11 @@ Stand: 9. Oktober 2026. `main` enthält den aktuellen nativen macOS-Quellcode un
 
 | Bereich | Quelldatei |
 | --- | --- |
-| Seitenleiste, Navigation, Anmeldung, Wählen, Favoriten, Anrufliste, Kontakte, Audio-Einstellungen und große Gesprächsansicht | [`fonuMac/MacViews.swift`](fonuMac/MacViews.swift) |
-| Kleines Gesprächsfenster beim Minimieren, Fensterverhalten und Gesprächsaktionen | [`fonuMac/MacMiniCallWindow.swift`](fonuMac/MacMiniCallWindow.swift) |
-| Menüleistenstatus und Gesprächsaktionen außerhalb des Hauptfensters | [`fonuMac/MacCallStatusItem.swift`](fonuMac/MacCallStatusItem.swift) |
-| Gemeinsamer Gesprächsstatus, Dauer und tatsächlicher Audiopegel | [`fonuMac/MacCallActivity.swift`](fonuMac/MacCallActivity.swift) |
-| Gerätewahl und Mikrofonpegel | [`fonuMac/MacAudioManager.swift`](fonuMac/MacAudioManager.swift) |
+| Seitenleiste, Navigation, Anmeldung, Wählen, Favoriten, Anrufliste, Kontakte, Audio-Einstellungen und große Gesprächsansicht | [`FonadoMac/MacViews.swift`](FonadoMac/MacViews.swift) |
+| Kleines Gesprächsfenster beim Minimieren, Fensterverhalten und Gesprächsaktionen | [`FonadoMac/MacMiniCallWindow.swift`](FonadoMac/MacMiniCallWindow.swift) |
+| Menüleistenstatus und Gesprächsaktionen außerhalb des Hauptfensters | [`FonadoMac/MacCallStatusItem.swift`](FonadoMac/MacCallStatusItem.swift) |
+| Gemeinsamer Gesprächsstatus, Dauer und tatsächlicher Audiopegel | [`FonadoMac/MacCallActivity.swift`](FonadoMac/MacCallActivity.swift) |
+| Gerätewahl und Mikrofonpegel | [`FonadoMac/MacAudioManager.swift`](FonadoMac/MacAudioManager.swift) |
 | Firmenverzeichnis, Personen, Erreichbarkeit und persönliche Verfügbarkeit | [`../Shared/TeamView.swift`](../Shared/TeamView.swift) |
 | Datenmodelle und API-Abgleich für das Firmenverzeichnis | [`../Shared/TeamMember.swift`](../Shared/TeamMember.swift), [`../Shared/TeamDirectory.swift`](../Shared/TeamDirectory.swift) |
 | Kontozustand, Anmeldung und Cloud-Provisionierung | [`../Shared/CustomerAccount.swift`](../Shared/CustomerAccount.swift) |
@@ -18,11 +18,11 @@ Stand: 9. Oktober 2026. `main` enthält den aktuellen nativen macOS-Quellcode un
 
 Die regulären Navigationspunkte heißen **Wählen**, **Favoriten**, **Anrufliste**, **Kontakte**, **Team** und **Konto**. Während eines Anrufs kommt **Gespräch** hinzu. Hauptfenster, kleines Gesprächsfenster und Menüleistenstatus verwenden denselben Gesprächszustand und denselben gemessenen Pegelverlauf.
 
-fonu-Violett ist in `MacStyle.accent` definiert: RGB `(0.43, 0.29, 0.85)`. Annahme ist grün; Auflegen und Ablehnen sind rot. Stumm und Halten erhalten eine sichtbare Auswahlmarkierung. Native Systemdarstellung, Tastaturbedienung und zugängliche Zustandsangaben gehören zum aktuellen Verhalten.
+Die systemIQ-Palette ist in den Farben `AccentColor` und `ActionColor` sowie `MacStyle` definiert: Grün `#96B914`, Anthrazit `#373737`, Hellgrau und Weiß. Darkmode-Texte bleiben neutral hell; grüne Aktionsflächen tragen anthrazitfarbene Beschriftungen. Annahme ist grün; Auflegen und Ablehnen sind rot. Stumm und Halten erhalten eine sichtbare Auswahlmarkierung. Native Systemdarstellung, Tastaturbedienung und zugängliche Zustandsangaben gehören zum aktuellen Verhalten.
 
 ## Vorschau und Prüfung ohne Telefoniekonto
 
-Das Xcode-Projekt liegt unter `fonuMac.xcodeproj`, Scheme **fonuMac**, Mindestversion macOS 14. Linphone ist über Swift Package Manager auf 5.5.23 festgelegt; HIDAPI-Quellcode und Lizenzen liegen unter `Vendor/hidapi/`.
+Das Xcode-Projekt liegt unter `FonadoMac.xcodeproj`, Scheme **FonadoMac**, Mindestversion macOS 14. Linphone ist über Swift Package Manager auf 5.5.23 festgelegt; HIDAPI-Quellcode und Lizenzen liegen unter `Vendor/hidapi/`.
 
 ```sh
 ./macos/build.sh

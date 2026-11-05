@@ -63,8 +63,14 @@ private extension CloudCallHistorySync {
                 entries: unchanged ? [] : [.init(id: id.uuidString, number: "505", incoming: true,
                     started_at: now, duration_seconds: 12, outcome: "completed")])
         }
+        manager.recents = [RecentCall(contact: Contact(id: "legacy", name: "Legacy local call", role: "", number: "510"),
+                                     date: Date(), detail: "Ausgehend", missed: false)]
         let sync = CloudCallHistorySync(manager: manager, cacheDirectory: cache,
             read: backend.read, delete: backend.delete)
+        precondition(manager.recents.isEmpty, "Attaching account history sync must hide preloaded local history before a user or tenant is selected")
+        sync.selectForChecks(nil)
+        sync.selectForChecks(nil)
+        precondition(manager.recents.isEmpty && manager.historyStatus.isEmpty, "Repeated missing account contexts must not reveal local history")
         backend.response = payload(a)
         sync.selectForChecks(a)
         await sync.refreshForChecks()
@@ -113,7 +119,7 @@ private extension CloudCallHistorySync {
     }
 }
 '''
-with tempfile.TemporaryDirectory(prefix='fonu-history-sync-') as directory:
+with tempfile.TemporaryDirectory(prefix='Fonado-history-sync-') as directory:
     folder = Path(directory)
     harness = folder / 'HistorySyncChecks.swift'
     harness.write_text(stub + controller + checks)

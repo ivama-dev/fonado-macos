@@ -3,7 +3,7 @@ import Foundation
 
 /// Explicit, isolated UI preview. No account restore, network, microphone or persisted contacts.
 enum TeamPreview {
-    static var enabled: Bool { ProcessInfo.processInfo.arguments.contains("--preview-team-ui") }
+    static var enabled: Bool { ProcessInfo.processInfo.arguments.contains("--preview-team-ui") || Bundle.main.object(forInfoDictionaryKey: "FonadoTeamPreview") as? Bool == true }
     static let snapshot = TeamSnapshot(schemaVersion: 1, tenantID: "preview-company", tenantName: "Beispiel GmbH",
         revision: 1, selfUserID: "preview-self", members: [
             TeamMember(id: "preview-self", name: "Alex Berger", email: "alex@example.invalid", number: "100",
@@ -18,7 +18,7 @@ enum TeamPreview {
         ])
     static var membership: CloudMembership {
         CloudMembership(id: snapshot.tenantID, name: snapshot.tenantName, role: "member", number: "100",
-            trial: .init(expires_at: nil, expired: false, telephony_status: "internal_ready"))
+            trial: .init(expires_at: nil, expired: false, telephony_status: "internal_ready"), addressbook: nil)
     }
     static var presence: TeamPresenceSnapshot {
         let now = Date().timeIntervalSince1970

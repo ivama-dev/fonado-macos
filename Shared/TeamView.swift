@@ -3,16 +3,33 @@ import SwiftUI
 private enum TeamStyle {
     static var accent: Color {
         #if os(iOS)
-        fonuStyle.accent
+        FonadoStyle.accent
         #else
         MacStyle.accent
         #endif
     }
+    static var action: Color {
+        #if os(iOS)
+        FonadoStyle.accent
+        #else
+        MacStyle.action
+        #endif
+    }
     static var background: Color {
         #if os(iOS)
-        fonuStyle.background
+        FonadoStyle.background
         #else
         Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
+}
+
+private extension View {
+    @ViewBuilder func teamPrimaryButtonStyle() -> some View {
+        #if os(macOS)
+        self.buttonStyle(MacPrimaryButtonStyle())
+        #else
+        self.buttonStyle(.borderedProminent).tint(TeamStyle.action)
         #endif
     }
 }
@@ -91,7 +108,13 @@ private struct TeamContent: View {
             if visible && scenePhase == .active { await customer.refreshTeam() }
         }
         .onChange(of: customer.teamContext) { _, _ in selection = nil; query = "" }
-        .sheet(isPresented: $showAvailability) { AvailabilityView() }
+        .sheet(isPresented: $showAvailability) {
+                #if os(macOS)
+                MacScaledPresentation { AvailabilityView() }
+                #else
+                AvailabilityView()
+                #endif
+            }
     }
 
     #if os(macOS)
@@ -176,7 +199,7 @@ private struct TeamContent: View {
                                             .disabled(!customer.canCallTeamMember(member))
                                     }
                                 }.padding(6)
-                                    .background(selection == route ? TeamStyle.accent.opacity(0.10) : .clear,
+                                    .background(selection == route ? TeamStyle.action.opacity(0.10) : .clear,
                                                 in: RoundedRectangle(cornerRadius: 10))
                                 #else
                                 NavigationLink(value: route) { TeamMemberRow(member: member, isSelf: member.id == context.accountID) }
@@ -212,7 +235,7 @@ private struct TeamPlannedArea: View {
             Image(systemName: symbol)
                 .font(.title3).foregroundStyle(TeamStyle.accent)
                 .frame(width: 42, height: 42)
-                .background(TeamStyle.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                .background(TeamStyle.action.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 5) {
                 Text("Geplant").font(.headline)
@@ -231,6 +254,12 @@ private struct TeamMemberRow: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(member.name).font(.headline).foregroundStyle(.primary)
                     .labelStyle(.titleAndIcon).lineLimit(1).truncationMode(.tail)
+                if let position = member.position, !position.isEmpty {
+                    Text(position).font(.subheadline).foregroundStyle(.secondary)
+                }
+                if let mobile = member.mobileNumber, !mobile.isEmpty {
+                    Text("Mobil \(mobile)").font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
                 PresenceStatusView(userID:member.id)
                 if let availability = member.availability {
                     if availability.state != "available" { Text("Status: " + availability.label).font(.caption).foregroundStyle(.secondary) }
@@ -277,14 +306,42 @@ struct PresenceStatusView: View {
     }
 }
 
+
+/// The authenticated team snapshot contains a bounded JPEG thumbnail, never a remote URL.
+struct ProfilePortrait: View {
+    let thumbnail: String?
+    let initials: String
+    var size: CGFloat = 48
+    @State private var decoded: Image?
+    @State private var decodedThumbnail: String?
+    var body: some View {
+        ZStack {
+            Circle().fill(TeamStyle.action.opacity(0.10))
+            Text(initials).font(size > 60 ? .largeTitle : .headline).foregroundStyle(TeamStyle.accent)
+            if decodedThumbnail == thumbnail, let decoded { decoded.resizable().scaledToFill() }
+        }
+        .frame(width: size, height: size).clipShape(Circle())
+        .accessibilityHidden(true)
+        .task(id: thumbnail) {
+            decoded = nil; decodedThumbnail = nil
+            guard let thumbnail, thumbnail.utf8.count <= 40000, let data = Data(base64Encoded: thumbnail) else { return }
+            #if os(iOS)
+            guard let native = UIImage(data: data) else { return }
+            decoded = Image(uiImage: native)
+            #else
+            guard let native = NSImage(data: data) else { return }
+            decoded = Image(nsImage: native)
+            #endif
+            decodedThumbnail = thumbnail
+        }
+    }
+}
+
 private struct TeamAvatar: View {
     let member: TeamMember
     var large = false
     var body: some View {
-        Text(member.initials).font(large ? .largeTitle : .headline)
-            .foregroundStyle(TeamStyle.accent)
-            .frame(width: large ? 88 : 42, height: large ? 88 : 42)
-            .background(TeamStyle.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: large ? 29 : 14))
+        ProfilePortrait(thumbnail: member.picture, initials: member.initials, size: large ? 88 : 42)
             .accessibilityHidden(true)
     }
 }
@@ -313,7 +370,9 @@ private struct TeamDetailView: View {
                             if member.id == route.context.accountID { Text("Du").font(.subheadline).foregroundStyle(.secondary) }
                         }.frame(maxWidth: .infinity)
                         VStack(alignment: .leading, spacing: 16) {
+                            if let position = member.position, !position.isEmpty { detail("Position", value: position) }
                             detail("E-Mail", value: member.email)
+                            if let mobile = member.mobileNumber, !mobile.isEmpty { detail("Mobilnummer", value: mobile) }
                             PresenceStatusView(userID:member.id)
                             if let peer = customer.telephonePresence(for:member.id).peerNumber,
                                customer.presencePeerName(customer.telephonePresence(for:member.id)) != peer {
@@ -330,7 +389,7 @@ private struct TeamDetailView: View {
                             Button { customer.callTeamMember(member) } label: {
                                 Label("Anrufen", systemImage: "phone.fill").frame(maxWidth: .infinity).padding(.vertical, 8)
                             }
-                            .buttonStyle(.borderedProminent)
+                            .teamPrimaryButtonStyle()
                             .disabled(!customer.canCallTeamMember(member))
                             if let reason = callUnavailableReason(member) {
                                 Text(reason).font(.footnote).foregroundStyle(.secondary)
@@ -432,7 +491,13 @@ struct AvailabilityProfileMenu: View {
             .disabled(customer.availabilitySaving)
             .accessibilityLabel("Anrufprofil: " + snapshot.settings.activeProfile.name)
             .accessibilityHint("Geräte für eingehende Anrufe auswählen")
-            .sheet(isPresented:$presented) { AvailabilityView() }
+            .sheet(isPresented:$presented) {
+                #if os(macOS)
+                MacScaledPresentation { AvailabilityView() }
+                #else
+                AvailabilityView()
+                #endif
+            }
         }
     }
 }
@@ -467,7 +532,7 @@ struct AvailabilityView: View {
                         Button {
                             editor = ProfileEditContext(snapshot:snapshot,profile:.init(id:"p"+UUID().uuidString.replacingOccurrences(of:"-",with:"").lowercased(),name:"",deviceIDs:snapshot.ownDevices.map(\.id)),isNew:true)
                         } label: { Label("Profil anlegen",systemImage:"plus.circle.fill") }
-                        .buttonStyle(.borderedProminent).tint(TeamStyle.accent)
+                        .teamPrimaryButtonStyle()
                         .disabled(snapshot.settings.profiles.count >= 20)
                         DisclosureGroup("Status, Arbeitszeiten und Rufteams") {
                             advanced(snapshot).padding(.top,12)
@@ -484,7 +549,13 @@ struct AvailabilityView: View {
             .navigationTitle("Anrufprofile")
             .toolbar { ToolbarItem(placement:.confirmationAction) { Button("Fertig") { dismiss() } } }
             .task(id:customer.teamContext) { await customer.refreshAvailability() }
-            .sheet(item:$editor) { ProfileEditorView(context:$0) }
+            .sheet(item:$editor) { context in
+                #if os(macOS)
+                MacScaledPresentation { ProfileEditorView(context:context) }
+                #else
+                ProfileEditorView(context:context)
+                #endif
+            }
         }
         #if os(macOS)
         .frame(minWidth:540,idealWidth:600,minHeight:540)
@@ -518,7 +589,7 @@ struct AvailabilityView: View {
                 Text("Deaktivierte oder abgemeldete Geräte bleiben ausgeschlossen.").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(16).background(.background,in:RoundedRectangle(cornerRadius:16))
-            .overlay(RoundedRectangle(cornerRadius:16).stroke(active ? TeamStyle.accent.opacity(0.6) : Color.secondary.opacity(0.15),lineWidth:active ? 2 : 1))
+            .overlay(RoundedRectangle(cornerRadius:16).stroke(active ? TeamStyle.action.opacity(0.6) : Color.secondary.opacity(0.15),lineWidth:active ? 2 : 1))
     }
     @ViewBuilder private func advanced(_ snapshot:AvailabilitySnapshot)->some View {
         VStack(alignment:.leading,spacing:16) {
@@ -558,7 +629,7 @@ struct AvailabilityView: View {
                     }
                 }
             }
-            Link("Zeitpläne und Rufteams im Kundenbereich",destination:URL(string:"https://dev.fonoo.app/kunden/?tenant_id="+snapshot.tenantID+"&section=availability")!)
+            Link("Zeitpläne und Rufteams im Kundenbereich",destination:URL(string:"https://konto.fonado.ai/kunden/?tenant_id="+snapshot.tenantID+"&section=availability")!)
         }.onAppear { if let presence = snapshot.settings.presence { state=presence.state; description=presence.description } }
     }
 }
@@ -624,5 +695,36 @@ private struct ProfileEditorView:View {
         if !delete { profiles.append(.init(id:context.profile.id,name:name.trimmingCharacters(in:.whitespacesAndNewlines),deviceIDs:selected.sorted())) }
         let active = delete && context.snapshot.settings.activeProfile.id == context.profile.id ? "standard" : context.snapshot.settings.activeProfile.id
         if await customer.saveAvailability(["device_profiles":profiles.map(\.requestValue),"active_profile_id":active],expectedRevision:context.snapshot.revision) { dismiss() }
+    }
+}
+
+
+/// The company's directory remains available without permission to read device contacts.
+struct TeamAddressBookSection: View {
+    @EnvironmentObject private var customer: CustomerAccount
+    @ObservedObject var directory: TeamDirectory
+    let query: String
+    var body: some View {
+        if let context = directory.context {
+            Section(directory.snapshot?.tenantName ?? "Firmenadressbuch") {
+                if directory.isLoading && directory.snapshot == nil {
+                    ProgressView("Firmenadressbuch laden …")
+                } else if let error = directory.errorMessage {
+                    Text(error).font(.footnote).foregroundStyle(.secondary)
+                    Button("Firmenadressbuch aktualisieren") { Task { await customer.refreshTeam() } }
+                } else {
+                    ForEach(directory.members(matching: query)) { member in
+                        VStack(alignment: .leading, spacing: 8) {
+                            TeamMemberRow(member: member, isSelf: member.id == context.accountID)
+                            if member.id != context.accountID, member.number != nil {
+                                Button { customer.callTeamMember(member) } label: {
+                                    Label("Intern anrufen", systemImage: "phone")
+                                }.buttonStyle(.borderless).disabled(!customer.canCallTeamMember(member))
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

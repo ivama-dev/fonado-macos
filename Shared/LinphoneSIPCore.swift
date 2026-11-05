@@ -26,8 +26,12 @@ final class LinphoneSIPCore: SIPCore {
             try unregister()
             let deadline = Date().addingTimeInterval(3)
             while core.defaultAccount?.state == .Ok || core.defaultAccount?.state == .Progress || core.defaultAccount?.state == .Refreshing {
+                // Cancellation must stop waiting without skipping SDK cleanup.
+                // A cancelled sleep throws immediately on every subsequent iteration.
+                if Task.isCancelled { break }
                 if Date() >= deadline { timedOut = true; break }
-                try? await Task.sleep(nanoseconds: 20_000_000)
+                do { try await Task.sleep(nanoseconds: 20_000_000) }
+                catch { break }
             }
             deregistrationFailed = needsConfirmation && core.defaultAccount?.state == .Failed
             iterateTimer?.invalidate(); iterateTimer = nil
@@ -40,6 +44,7 @@ final class LinphoneSIPCore: SIPCore {
         calls.removeAll()
         defaultAudioCodecs.removeAll(); ids.removeAll(); audioTraces.removeAll(); callTimings.removeAll()
         onEvent = nil; wantsRegistration = false
+        try Task.checkCancellation()
         if timedOut || deregistrationFailed { throw PhoneError.message("Liblinphone wurde beendet; die SIP-Abmeldung wurde nicht bestätigt. Engine-Wechsel erneut ausdrücklich starten.") }
     }
     private var loggingDelegate: LoggingServiceDelegateStub?
@@ -171,7 +176,7 @@ final class LinphoneSIPCore: SIPCore {
         value.videoCaptureEnabled = false
         value.videoDisplayEnabled = false
         value.maxCalls = 2 // One original call plus one explicitly requested consultation.
-        value.setUserAgent(name: "fonu", version: "0.1")
+        value.setUserAgent(name: "fonado", version: "0.1")
         Self.configureSpeechAudio(value)
         // Use the CA bundle shipped by the pinned SDK explicitly, rather than
         // relying on its platform-dependent default resource discovery.
@@ -187,7 +192,7 @@ final class LinphoneSIPCore: SIPCore {
               let pem = try? String(contentsOf: trustBundle, encoding: .utf8),
               pem.contains("-----BEGIN CERTIFICATE-----") else {
             trace("FEHLER: Der mitgelieferte TLS-Zertifikatsspeicher fehlt oder ist nicht lesbar.")
-            throw PhoneError.message("TLS-Zertifikatsspeicher nicht verfügbar. Bitte fonu neu installieren.")
+            throw PhoneError.message("TLS-Zertifikatsspeicher nicht verfügbar. Bitte Fonado neu installieren.")
         }
         value.rootCa = trustBundle.path
         let rootCount = pem.components(separatedBy: "-----BEGIN CERTIFICATE-----").count - 1
@@ -576,8 +581,8 @@ final class LinphoneSIPCore: SIPCore {
         guard systemCallAudio else { return }
         core?.activateAudioSession(activated: active)
     }
-    private func fonuCallID(_ call: Call) -> String? {
-        let header = call.remoteParams?.getCustomHeader(headerName: "X-Fonoo-Call-ID") ?? ""
+    private func fonadoCallID(_ call: Call) -> String? {
+        let header = call.remoteParams?.getCustomHeader(headerName: "X-Fonado-Call-ID") ?? ""
         if header.range(of: "^[0-9a-f]{32}$", options: .regularExpression) != nil { return header }
         return call.callLog?.callId
     }
@@ -676,7 +681,7 @@ final class LinphoneSIPCore: SIPCore {
         default: return
         }
         let event = SIPCallEvent(id: id, number: call.remoteAddress?.username ?? "Unbekannt",
-            displayName: call.remoteAddress?.displayName ?? "", state: mapped, signalingID: fonuCallID(call))
+            displayName: call.remoteAddress?.displayName ?? "", state: mapped, signalingID: fonadoCallID(call))
         // Remove before notifying: the manager may start another call from an end event.
         if state == .End || state == .Error {
             finishAudioTrace(id: id)

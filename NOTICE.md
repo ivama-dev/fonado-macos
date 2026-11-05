@@ -1,8 +1,8 @@
 # Copyright und Drittanbieter
 
-Copyright (C) 2026 fonu contributors.
+Copyright (C) 2026 die Mitwirkenden dieses Projekts.
 
-Der ursprüngliche fonu-macOS-App-Code und das zugehörige Projektmaterial in diesem Repository stehen unter der **GNU Affero General Public License, Version 3 oder (nach eigener Wahl) jeder späteren Version** (`AGPL-3.0-or-later`), ohne Gewährleistung. Siehe [LICENSE](LICENSE). fonu-Namen und Marken erteilen keine Zustimmung oder Berechtigung, geänderte Software als offizielle fonu-Veröffentlichung auszugeben.
+Der ursprüngliche Fonado-macOS-App-Code und das zugehörige Projektmaterial in diesem Repository stehen unter der **GNU Affero General Public License, Version 3 oder (nach eigener Wahl) jeder späteren Version** (`AGPL-3.0-or-later`), ohne Gewährleistung. Siehe [LICENSE](LICENSE). Fonado-Namen und Marken erteilen keine Zustimmung oder Berechtigung, geänderte Software als offizielle Fonado-Veröffentlichung auszugeben.
 
 Drittanbieter behalten ihre eigenen Urheberrechte und Lizenzen. Die Projektlizenz lizenziert Drittanbieter-Software nicht neu:
 

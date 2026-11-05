@@ -8,7 +8,7 @@ import SwiftUI
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
     static var runningChecks: Bool {
         #if DEBUG
-        return ProcessInfo.processInfo.arguments.contains { ["--check-authentication", "--check-sip-lifecycle", "--check-telephony", "--check-audio", "--check-microphone-ui", "--preview-call-ui", "--preview-team-ui"].contains($0) }
+        return TeamPreview.enabled || ProcessInfo.processInfo.arguments.contains { ["--check-authentication", "--check-sip-lifecycle", "--check-telephony", "--check-audio", "--check-microphone-ui", "--preview-call-ui", "--preview-team-ui"].contains($0) }
         #else
         return false
         #endif
@@ -150,7 +150,7 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
             core.refreshAudioDevices()
             #endif
             let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: "app.fonoo.macos.runtime-check",
+                kSecAttrService as String: "ai.fonado.macos.runtime-check",
                 kSecAttrAccount as String: UUID().uuidString]
             let payload = Data("local-fixture".utf8)
             let added = SecItemAdd(query.merging([kSecValueData as String: payload,
@@ -247,7 +247,7 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard phone.busy else { return .terminateNow }
         let alert = NSAlert()
-        alert.messageText = "Gespräch beenden und fonu schließen?"
+        alert.messageText = "Gespräch beenden und Fonado schließen?"
         alert.informativeText = "Dein laufendes Gespräch wird getrennt."
         alert.addButton(withTitle: "Weiter telefonieren")
         alert.addButton(withTitle: "Beenden")
@@ -271,13 +271,26 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Launch the sandbox once without initializing accounts or phone services.
+/// This gives the local installer a safe boundary for importing existing data.
 @main
-struct fonuMacApp: App {
+private enum FonadoMacLauncher {
+    @MainActor static func main() {
+        if ProcessInfo.processInfo.arguments.contains("--prepare-data-migration") {
+            print("Fonado sandbox prepared; no account or telephone services started.")
+            exit(0)
+        }
+        FonadoMacApp.main()
+    }
+}
+
+struct FonadoMacApp: App {
     @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var delegate
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openWindow) private var openWindow
     var body: some Scene {
-        Window("fonu", id: "main") {
+        Window("Fonado", id: "main") {
+            MacScaledViewport {
             Group {
                 #if DEBUG
                 if TeamPreview.enabled {
@@ -293,12 +306,14 @@ struct fonuMacApp: App {
                 MacRootView()
                 #endif
             }
+            }
                 .environmentObject(delegate.phone)
                 .environmentObject(delegate.customer)
                 .environmentObject(delegate.callActivity)
                 .environmentObject(delegate.navigation)
                 .tint(MacStyle.accent)
                 .frame(minWidth: 820, minHeight: 580)
+                .toolbar { MacDisplayControls() }
                 .onAppear {
                     let open = openWindow
                     delegate.openMainWindow = { open(id: "main") }
@@ -321,6 +336,7 @@ struct fonuMacApp: App {
                 Button("Menüleistensymbol rechts einblenden", action: delegate.restoreMenuBarPosition)
             }
             MacTelephonyCommands(phone: delegate.phone, showMiniCall: delegate.showMiniCallWindow)
+            MacDisplayCommands()
         }
     }
 }

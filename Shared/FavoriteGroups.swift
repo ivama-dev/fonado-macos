@@ -131,11 +131,14 @@ struct FavoriteLibrary: Codable, Equatable {
             let parent = local.map { old?.1 != $0.1 ? $0.1 : other?.1 ?? $0.1 } ?? other!.1
             membership[id] = aliases[parent] ?? FavoriteGroup.generalID
         }
+        let baseOrder = ancestor.contacts.map(\.id)
+        let localOrder = contacts.map(\.id)
+        let remoteOrder = remote.contacts.map(\.id)
         for index in result.groups.indices {
             let id = result.groups[index].id
             let members = Set(contactIDs.filter { membership[$0] == id })
-            let order = Self.mergedOrder(base: ancestor.contacts.map(\.id), local: contacts.map(\.id),
-                remote: remote.contacts.map(\.id), surviving: members)
+            let order = Self.mergedOrder(base: baseOrder, local: localOrder,
+                remote: remoteOrder, surviving: members)
             result.groups[index].contacts = order.compactMap { merged[$0] }
         }
         return try result.checked()

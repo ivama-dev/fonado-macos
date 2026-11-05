@@ -281,6 +281,29 @@ struct CallFlowChecks {
     @MainActor
     static func main() async throws {
         do {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Fonado-history-isolation-" + UUID().uuidString, isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let store = CallHistoryStore(url: directory.appendingPathComponent("call-history.json"))
+            let legacy = RecentCall(contact: Contact(id: "legacy", name: "Legacy local call", role: "", number: "500"),
+                                    date: Date(), detail: "Ausgehend", missed: false)
+            try store.save([legacy])
+            let original = try Data(contentsOf: store.url)
+            let manager = CallManager(core: FakeSIPCore(), audio: FakeAudio(), diagnostics: Diagnostics(), history: store)
+            precondition(manager.recents.map(\.id) == [legacy.id], "Fixture must load the legacy local history")
+            manager.setCloudHistoryContext(false)
+            precondition(manager.recents.isEmpty, "Account history reset must hide unscoped local history without an active cloud context")
+            manager.setCloudHistoryContext(false)
+            precondition(manager.recents.isEmpty, "Repeated empty-context resets must stay empty")
+            let afterReset = try Data(contentsOf: store.url)
+            precondition(afterReset == original, "Account history reset must preserve the legacy history file")
+            manager.setCloudHistoryContext(true)
+            manager.applyCloudHistory([legacy], status: "Fixture account")
+            manager.setCloudHistoryContext(false)
+            precondition(manager.recents.isEmpty && manager.historyStatus.isEmpty, "Leaving an account history context must clear its visible rows")
+            let afterContextChanges = try Data(contentsOf: store.url)
+            precondition(afterContextChanges == original, "Account history changes must not overwrite the legacy history file")
+        }
+        do {
             let core = FakeSIPCore(), manager = CallManager(core: core, audio: FakeAudio(), diagnostics: Diagnostics())
             var account = SIPAccount(); account.server = "127.0.0.1"; account.domain = "127.0.0.1"; account.username = "fixture"
             core.silentRegister = true
@@ -459,7 +482,7 @@ struct CallFlowChecks {
         manager.attachIncomingCalls(incoming)
         incoming.canReceive = { manager.canReceiveSystemCall }
         let systemID = UUID(), sipID = UUID()
-        let payload: [AnyHashable: Any] = ["fonoo": ["version": 1, "type": "incoming_call", "event_id": "e1",
+        let payload: [AnyHashable: Any] = ["fonado": ["version": 1, "type": "incoming_call", "event_id": "e1",
             "call_id": "dialog-1", "call_uuid": systemID.uuidString, "expires_at": Date().timeIntervalSince1970 + 60]]
         incoming.receivePush(payload) {}
         precondition(manager.busy && core.systemAudio && audio.managed)
@@ -494,7 +517,7 @@ struct CallFlowChecks {
         precondition(manager.call == nil && !manager.busy && !audio.managed && !core.systemAudio)
         precondition(audio.releasedWhileManaged == [true] && core.audioActivations == [true, false])
 
-        incoming.receivePush(["fonoo": ["version": 1, "type": "incoming_call", "event_id": "e2",
+        incoming.receivePush(["fonado": ["version": 1, "type": "incoming_call", "event_id": "e2",
             "call_id": "dialog-2", "call_uuid": UUID().uuidString, "expires_at": Date().timeIntervalSince1970 + 60]]) {}
         manager.doNotDisturb = true
         precondition(!manager.busy && !incoming.busy, "DND cancels an unconnected waiting call")

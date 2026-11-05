@@ -3,7 +3,7 @@ import AppKit
 /// AppKit persists positions as a distance from the right edge. Keep these
 /// implementation-specific defaults isolated and never touch other apps' layout.
 enum MacMenuBarPlacement {
-    static let autosaveName = "fonoo.menu-bar"
+    static let autosaveName = "fonado.menu-bar"
     static let positionKey = "NSStatusItem Preferred Position " + autosaveName
     static let visibilityKey = "NSStatusItem Visible " + autosaveName
 

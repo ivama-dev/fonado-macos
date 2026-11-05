@@ -17,7 +17,7 @@ final class PhoneStore: ObservableObject {
     @Published private(set) var favoriteSyncEnabled = false
     var canSynchronizeFavorites: Bool { favoriteOwner != nil }
     var canImportLegacyFavorites: Bool {
-        favoriteOwner != nil && favoritesDefaults.string(forKey: "fonoo.favorites.legacyOwner") == ""
+        favoriteOwner != nil && favoritesDefaults.string(forKey: "fonado.favorites.legacyOwner") == ""
             && FileManager.default.fileExists(atPath: legacyFavoritesStore.url.path)
     }
     @Published private(set) var favoriteConflict = false
@@ -65,7 +65,8 @@ final class PhoneStore: ObservableObject {
     #endif
     var onPushPreferenceChanged: () -> Void = {}
     var resolveTeamContact: (String) -> Contact? = { _ in nil }
-    private let cloudPushKey = "fonoo.cloud.push.binding.v2"
+    var resolveAddressBookContact: (String) async -> Contact? = { _ in nil }
+    private let cloudPushKey = "fonado.cloud.push.binding.v2"
     private var wakeTask: Task<Void, Never>?
     private var wakePush: IncomingPush?
     var cloudPushBinding: [String: String]? { UserDefaults.standard.dictionary(forKey: cloudPushKey) as? [String: String] }
@@ -87,13 +88,13 @@ final class PhoneStore: ObservableObject {
     private let audio: AudioManager
     private let network = NetworkMonitor()
     private let recovery = ForegroundRegistrationRecovery()
-    private let autoRegistrationKey = "fonoo.sip.automaticallyRegisters"
+    private let autoRegistrationKey = "fonado.sip.automaticallyRegisters"
     private var observations: Set<AnyCancellable> = []
 
     #if DEBUG
     /// Isolated UI fixture: no saved account, registration, history or contacts.
     init(previewCore: SIPCore) {
-        favoritePersistence = FavoriteLibraryStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("fonu-preview-favorites-" + UUID().uuidString, isDirectory: true))
+        favoritePersistence = FavoriteLibraryStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent("fonado-preview-favorites-" + UUID().uuidString, isDirectory: true))
         favoriteStore = favoritePersistence
         favoriteState = FavoriteLibraryState(owner: "preview")
         connection = nil
@@ -144,17 +145,17 @@ final class PhoneStore: ObservableObject {
             await directory.refresh() // Uses existing permission only; never prompts during a call.
             if let match = DeviceContact.resolvedContact(in: directory.contacts, number: number) { return match }
             guard !Task.isCancelled else { return nil }
-            return nil
+            return await self.resolveAddressBookContact(number)
         }
         do { try connection.start(); diagnostics.record("Liblinphone · \(sdkVersion)") }
         catch { manager.show(error.localizedDescription) }
         #if os(macOS)
-        diagnostics.record("macOS: native fonu-Anrufansicht; erreichbar, solange die App läuft und der Mac wach ist.")
+        diagnostics.record("macOS: native Fonado-Anrufansicht; erreichbar, solange die App läuft und der Mac wach ist.")
         #elseif targetEnvironment(simulator)
         // The simulator has no system in-call UI host. Its callservicesd ends
         // native outgoing calls immediately (disconnect reason 55). Keep SIP
         // and audio under the foreground app's control for simulator testing.
-        diagnostics.record("Simulator: fonu-Anrufansicht aktiv; native Anrufe und VoIP-Push nur auf echten Geräten.")
+        diagnostics.record("Simulator: Fonado-Anrufansicht aktiv; native Anrufe und VoIP-Push nur auf echten Geräten.")
         #else
         prepareSystemCalls()
         #endif
@@ -210,7 +211,7 @@ final class PhoneStore: ObservableObject {
     }
     private func wakeRequest(_ push: IncomingPush, action: String) async throws -> String {
         guard let cloud = push.cloud else { throw URLError(.badURL) }
-        var request = URLRequest(url: URL(string: "https://push.dev.fonoo.app/v1/cloud/push/wake")!)
+        var request = URLRequest(url: URL(string: "https://api.fonado.ai/v1/cloud/push/wake")!)
         request.httpMethod = "POST"
         request.timeoutInterval = 5
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -261,7 +262,7 @@ final class PhoneStore: ObservableObject {
             throw PhoneError.message("Bitte eine Cloud-Nebenstelle am iPhone aktivieren oder das laufende Gespräch beenden.")
         }
         guard AVAudioApplication.shared.recordPermission == .granted else {
-            throw PhoneError.message("Bitte fonu am iPhone öffnen und den Mikrofonzugriff erlauben.")
+            throw PhoneError.message("Bitte Fonado am iPhone öffnen und den Mikrofonzugriff erlauben.")
         }
         let request = UUID(), endpoint = account.username
         nativeCallRequest = request
@@ -275,7 +276,7 @@ final class PhoneStore: ObservableObject {
             }
         }
         guard cloudPushActive, account.username == endpoint, !busy, registration == .registered else {
-            throw PhoneError.message("fonu ist gerade nicht verbunden. Bitte später erneut versuchen.")
+            throw PhoneError.message("Fonado ist gerade nicht verbunden. Bitte später erneut versuchen.")
         }
         let started = await withCheckedContinuation { continuation in
             manager.startSystemCall(contact) { continuation.resume(returning: $0) }
@@ -334,7 +335,7 @@ final class PhoneStore: ObservableObject {
     }
 
     private func isSelectedCloudAccount(_ candidate: SIPAccount) -> Bool {
-        let selected = UserDefaults.standard.dictionary(forKey: "fonoo.cloud.selected.v2") as? [String: String]
+        let selected = UserDefaults.standard.dictionary(forKey: "fonado.cloud.selected.v2") as? [String: String]
         return candidate.isSelectedCloudProfile(endpointID: selected?["endpoint_id"])
     }
 
@@ -360,7 +361,7 @@ final class PhoneStore: ObservableObject {
         let checked = try configuration.validated()
         guard checked.transport == .tls, checked.mediaEncryption == .srtp,
               !checked.usesTLSClientCertificate else {
-            throw PhoneError.message("Bitte deine fonu-Cloud-Nebenstelle im fonu-Konto einrichten.")
+            throw PhoneError.message("Bitte deine Fonado-Cloud-Nebenstelle im Fonado-Konto einrichten.")
         }
         // Blank means reuse the saved password only for the exact same account identity.
         let storedAccount = try accountStore.load()
@@ -415,9 +416,9 @@ final class PhoneStore: ObservableObject {
     }
     /// Capture the pre-upgrade account BEFORE a new login can replace its device selection.
     private func captureLegacyFavoritesOwner() {
-        guard favoritesDefaults.object(forKey: "fonoo.favorites.legacyOwner") == nil else { return }
-        let previous = (favoritesDefaults.dictionary(forKey: "fonoo.cloud.selected.v2") as? [String: String])?["account_id"]
-        favoritesDefaults.set(previous ?? "", forKey: "fonoo.favorites.legacyOwner")
+        guard favoritesDefaults.object(forKey: "fonado.favorites.legacyOwner") == nil else { return }
+        let previous = (favoritesDefaults.dictionary(forKey: "fonado.cloud.selected.v2") as? [String: String])?["account_id"]
+        favoritesDefaults.set(previous ?? "", forKey: "fonado.favorites.legacyOwner")
     }
     /// Only a confirmed account may adopt the legacy device list once. Its file is retained.
     func selectFavoriteOwner(_ owner: String?, importLegacy: Bool = false) {
@@ -431,7 +432,7 @@ final class PhoneStore: ObservableObject {
         do {
             let key = owner ?? "local"
             var state = try favoriteStore!.load(owner: key) ?? FavoriteLibraryState(owner: key)
-            let claimed = favoritesDefaults.string(forKey: "fonoo.favorites.legacyOwner")
+            let claimed = favoritesDefaults.string(forKey: "fonado.favorites.legacyOwner")
             if state.library.contacts.isEmpty && state.library.groups.count == 1 && state.revision == nil,
                (owner == nil && claimed == nil || owner != nil && importLegacy && claimed == owner) {
                 let legacy = try legacyFavoritesStore.load()
@@ -439,7 +440,7 @@ final class PhoneStore: ObservableObject {
                 state.library.groups[0].contacts = legacy.filter { ids.insert($0.id).inserted }
                 state.dirty = owner != nil && !state.library.contacts.isEmpty
                 try favoriteStore!.save(state)
-                if let owner, importLegacy { favoritesDefaults.set(owner, forKey: "fonoo.favorites.legacyOwner") }
+                if let owner, importLegacy { favoritesDefaults.set(owner, forKey: "fonado.favorites.legacyOwner") }
             }
             _ = try state.library.checked(); publishFavorites(state)
         } catch {
@@ -486,7 +487,7 @@ final class PhoneStore: ObservableObject {
                 library.groups[library.groups.firstIndex(where: \.isGeneral)!].contacts.append(contentsOf: additions)
             }
             if favoriteEditingError == nil {
-                favoritesDefaults.set(owner, forKey: "fonoo.favorites.legacyOwner")
+                favoritesDefaults.set(owner, forKey: "fonado.favorites.legacyOwner")
                 objectWillChange.send()
             }
         } catch { favoriteEditingError = error.localizedDescription; manager.show(error.localizedDescription) }
@@ -509,7 +510,7 @@ final class PhoneStore: ObservableObject {
         guard favoriteOwner == snapshot.user_id, favoriteSyncEnabled else { throw CancellationError() }
         var state = favoriteState; try state.observe(snapshot); try saveFavorites(state)
         favoriteSyncStatus = state.conflict != nil ? "Auf einem anderen Gerät geändert. Deine lokalen Änderungen bleiben erhalten."
-            : state.dirty ? "Lokal gespeichert · Synchronisierung ausstehend" : "Mit deinem fonu-Konto synchronisiert"
+            : state.dirty ? "Lokal gespeichert · Synchronisierung ausstehend" : "Mit deinem Fonado-Konto synchronisiert"
     }
     func favoriteUpload(owner: String) throws -> (revision: Int64, library: FavoriteLibrary)? {
         guard favoriteOwner == owner, favoriteSyncEnabled, favoriteState.dirty, favoriteState.conflict == nil, let revision = favoriteState.revision else { return nil }
@@ -519,7 +520,7 @@ final class PhoneStore: ObservableObject {
     func acknowledgeFavorites(_ snapshot: CloudFavoriteSnapshot, sent: FavoriteLibrary) throws {
         guard favoriteOwner == snapshot.user_id, favoriteSyncEnabled else { throw CancellationError() }
         var state = favoriteState; try state.acknowledged(snapshot, sent: sent); try saveFavorites(state)
-        favoriteSyncStatus = state.dirty ? "Lokal gespeichert · Synchronisierung ausstehend" : "Mit deinem fonu-Konto synchronisiert"
+        favoriteSyncStatus = state.dirty ? "Lokal gespeichert · Synchronisierung ausstehend" : "Mit deinem Fonado-Konto synchronisiert"
         if state.dirty { onFavoritesChanged?() }
     }
     func mergeFavoriteConflict() {

@@ -38,16 +38,16 @@ enum SystemCallActivity {
         } else {
             // Existing in-app Siri/CarPlay handoff uses an explicit one-use ID.
             guard activity.activityType == "INStartCallIntent",
-                  let id = activity.userInfo?["fonoo_request"] as? String, !id.isEmpty,
-                  let value = activity.userInfo?["fonoo_number"] as? String,
+                  let id = activity.userInfo?["fonado_request"] as? String, !id.isEmpty,
+                  let value = activity.userInfo?["fonado_number"] as? String,
                   let number = try? SIPAccount.normalizedNumber(value) else { return nil }
-            contact = Contact(id: number, name: activity.userInfo?["fonoo_name"] as? String ?? number,
+            contact = Contact(id: number, name: activity.userInfo?["fonado_name"] as? String ?? number,
                               role: "Anrufliste", number: number)
         }
-        let id = activity.userInfo?["fonoo_request"] as? String
+        let id = activity.userInfo?["fonado_request"] as? String
             ?? activity.interaction?.identifier ?? activity.interaction?.intent.identifier ?? UUID().uuidString
         // Preserve identity if SwiftUI and UIApplication deliver the same activity.
-        activity.addUserInfoEntries(from: ["fonoo_request": id])
+        activity.addUserInfoEntries(from: ["fonado_request": id])
         return (contact, id)
     }
 }

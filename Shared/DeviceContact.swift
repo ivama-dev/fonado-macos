@@ -25,7 +25,9 @@ struct DeviceContact: Identifiable, Equatable, Sendable {
 
     /// Exact phone matching only: never confuse extensions with suffixes of external numbers.
     func matchingPhoneNumber(_ value: String) -> DevicePhoneNumber? {
-        let target = Self.normalizedPhoneNumber(value)
+        matchingPhoneNumber(normalized: Self.normalizedPhoneNumber(value))
+    }
+    private func matchingPhoneNumber(normalized target: String) -> DevicePhoneNumber? {
         guard !target.isEmpty else { return nil }
         return numbers.first { Self.normalizedPhoneNumber($0.value) == target }
     }
@@ -39,9 +41,11 @@ struct DeviceContact: Identifiable, Equatable, Sendable {
         return digits
     }
     static func resolvedContact(in contacts: [DeviceContact], number: String) -> Contact? {
+        let target = normalizedPhoneNumber(number)
+        guard !target.isEmpty else { return nil }
         var match: Contact?
         for person in contacts {
-            guard let phone = person.matchingPhoneNumber(number) else { continue }
+            guard let phone = person.matchingPhoneNumber(normalized: target) else { continue }
             guard match == nil else { return nil } // Ambiguous names are not guessed.
             match = person.callContact(for: phone)
         }

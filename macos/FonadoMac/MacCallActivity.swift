@@ -18,7 +18,7 @@ final class MacCallActivity: ObservableObject {
         var hasCall: Bool { state != .idle }
         var label: String {
             switch state {
-            case .idle: "fonu"
+            case .idle: "Fonado"
             case .incoming: "Eingehender Anruf"
             case .connecting: "Verbindung wird aufgebaut"
             case .ringing: "Klingelt …"
@@ -107,6 +107,25 @@ final class MacCallActivity: ObservableObject {
         if snapshot != Snapshot() { snapshot = Snapshot() }
     }
     deinit { timer?.invalidate() }
+}
+
+/// The fixed menu-bar button does not display the high-frequency audio trace.
+/// Keep only the values it renders, so waveform samples cannot trigger AppKit work.
+struct MacMenuBarPresentation: Equatable {
+    let state: MacCallActivity.State
+    let toolTip: String
+    let accessibilityLabel: String
+
+    init(snapshot: MacCallActivity.Snapshot, registrationLabel: String, doNotDisturb: Bool) {
+        state = snapshot.state
+        if snapshot.hasCall {
+            toolTip = "Fonado · \(snapshot.label) · \(snapshot.contact)\(snapshot.elapsed.isEmpty ? "" : " · " + snapshot.elapsed)"
+            accessibilityLabel = "Fonado, \(snapshot.label), \(snapshot.elapsed)"
+        } else {
+            toolTip = "Fonado · \(registrationLabel)\(doNotDisturb ? " · Nicht stören" : "")"
+            accessibilityLabel = "Fonado, \(registrationLabel)\(doNotDisturb ? ", Nicht stören" : "")"
+        }
+    }
 }
 
 /// Short amplitude history, not a frequency spectrum. Each bar is an actual

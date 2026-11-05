@@ -101,6 +101,43 @@ struct AudioDeviceChecks {
         precondition(envelope.bars.allSatisfy { $0 == 0 })
         print("PASS: real temporal speech history, fast response, quiet pauses, headroom, mute direction and sampling cadence")
 
+        var menuSnapshot = MacCallActivity.Snapshot(callID: UUID(), state: .active,
+            contact: "Local fixture", elapsed: "1:05")
+        let menuPresentation = MacMenuBarPresentation(snapshot: menuSnapshot,
+            registrationLabel: "Registriert", doNotDisturb: false)
+        precondition(menuPresentation.toolTip == "Fonado · Im Gespräch · Local fixture · 1:05")
+        precondition(menuPresentation.accessibilityLabel == "Fonado, Im Gespräch, 1:05")
+        for sample in 0..<100 {
+            menuSnapshot.level = Double(sample) / 100
+            menuSnapshot.levelsAvailable = sample.isMultiple(of: 2)
+            menuSnapshot.waveform = Array(repeating: menuSnapshot.level, count: MacSpeechEnvelope.barCount)
+            precondition(MacMenuBarPresentation(snapshot: menuSnapshot,
+                registrationLabel: "Registriert", doNotDisturb: false) == menuPresentation)
+        }
+        precondition(MacMenuBarPresentation(snapshot: menuSnapshot,
+            registrationLabel: "Offline", doNotDisturb: true) == menuPresentation)
+        menuSnapshot.elapsed = "1:06"
+        precondition(MacMenuBarPresentation(snapshot: menuSnapshot,
+            registrationLabel: "Registriert", doNotDisturb: false) != menuPresentation)
+        menuSnapshot.elapsed = "1:05"
+        menuSnapshot.contact = "Other fixture"
+        precondition(MacMenuBarPresentation(snapshot: menuSnapshot,
+            registrationLabel: "Registriert", doNotDisturb: false) != menuPresentation)
+        menuSnapshot.contact = "Local fixture"
+        for state in [MacCallActivity.State.incoming, .connecting, .ringing, .muted, .held, .ending] {
+            menuSnapshot.state = state
+            let changed = MacMenuBarPresentation(snapshot: menuSnapshot,
+                registrationLabel: "Registriert", doNotDisturb: false)
+            precondition(changed != menuPresentation && changed.state == state)
+        }
+        let idleMenu = MacMenuBarPresentation(snapshot: .init(), registrationLabel: "Registriert", doNotDisturb: false)
+        let idleDND = MacMenuBarPresentation(snapshot: .init(), registrationLabel: "Registriert", doNotDisturb: true)
+        precondition(idleMenu.toolTip == "Fonado · Registriert" && idleMenu.state == .idle)
+        precondition(idleDND != idleMenu && idleDND.toolTip == "Fonado · Registriert · Nicht stören"
+            && idleDND.accessibilityLabel == "Fonado, Registriert, Nicht stören")
+        precondition(MacMenuBarPresentation(snapshot: .init(), registrationLabel: "Offline", doNotDisturb: false) != idleMenu)
+        print("PASS: menu-bar presentation ignores audio samples and preserves contact, duration, call state, registration and DND updates")
+
         let core = MeterCore()
         let manager = CallManager(core: core, audio: MeterAudio(), diagnostics: Diagnostics())
         let meter = MacMicrophoneMeter()

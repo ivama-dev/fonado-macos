@@ -3,11 +3,61 @@ import Combine
 import SwiftUI
 
 enum MacStyle {
-    static let accent = Color(red: 0.43, green: 0.29, blue: 0.85)
+    static let accent = Color("AccentColor")
+    static let action = Color("ActionColor")
+    static let actionText = Color(red: 55 / 255, green: 55 / 255, blue: 55 / 255)
+}
+
+/// Keep the systemIQ green surface and charcoal label independent of the
+/// system accent color. Native prominent buttons override that combination.
+struct MacPrimaryButtonStyle: ButtonStyle {
+    var background: Color = MacStyle.action
+    var foreground: Color = MacStyle.actionText
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.controlSize) private var controlSize
+    @Environment(\.isFocused) private var focused
+
+    private var verticalPadding: CGFloat {
+        switch controlSize {
+        case .mini: 3
+        case .small: 4
+        case .large, .extraLarge: 8
+        default: 5
+        }
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .fontWeight(.medium)
+            .padding(.horizontal, 12)
+            .padding(.vertical, verticalPadding)
+            .foregroundStyle(enabled ? foreground : Color.secondary)
+            .background(enabled ? background : Color.secondary.opacity(0.12),
+                        in: RoundedRectangle(cornerRadius: 6))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(focused ? MacStyle.accent : .clear, lineWidth: 2)
+            }
+            .opacity(configuration.isPressed && enabled ? 0.8 : 1)
+            .contentShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+/// The supplied wordmark keeps its original proportions and dark appearance.
+struct FonadoLogoView: View {
+    var width: CGFloat = 160
+    var body: some View {
+        Image("FonadoLogo")
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: width, height: width * 500 / 1332)
+            .accessibilityLabel("Fonado")
+    }
 }
 
 enum MacDestination: String, CaseIterable, Identifiable {
-    case conversation = "Gespräch", dial = "Wählen", favorites = "Favoriten", recents = "Anrufliste", contacts = "Kontakte", team = "Team", account = "Konto", diagnostics = "Diagnose"
+    case conversation = "Gespräch", dial = "Wählen", favorites = "Favoriten", recents = "Anrufliste", contacts = "Kontakte", addressbook = "Adressbuch", team = "Team", account = "Konto", diagnostics = "Diagnose"
     var id: String { rawValue }
     var symbol: String {
         switch self {
@@ -16,6 +66,7 @@ enum MacDestination: String, CaseIterable, Identifiable {
         case .favorites: "star"
         case .recents: "clock"
         case .contacts: "person.crop.rectangle"
+        case .addressbook: "book.closed"
         case .team: "person.2.fill"
         case .account: "person.crop.circle"
         case .diagnostics: "waveform.path.ecg"
@@ -39,15 +90,12 @@ struct MacRootView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             VStack(alignment: .leading, spacing: 20) {
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Text("fonu").font(.system(size: 32, weight: .heavy)).tracking(-1.5)
-                    Circle().fill(MacStyle.accent).frame(width: 8, height: 8)
-                }.padding(.horizontal, 16).padding(.top, 20)
+                FonadoLogoView().padding(.horizontal, 16).padding(.top, 20)
                 List(selection: $destination) {
                     if phone.call != nil {
                         Label("Gespräch", systemImage: "phone.fill").tag(MacDestination.conversation)
                     }
-                    ForEach(MacDestination.allCases.filter { $0 != .conversation }) { item in
+                    ForEach(MacDestination.allCases.filter { $0 != .conversation && ($0 != .addressbook || customer.addressBookEnabled) }) { item in
                         Label(item.rawValue, systemImage: item.symbol).tag(item)
                     }
                 }.listStyle(.sidebar)
@@ -55,7 +103,6 @@ struct MacRootView: View {
                     Label(phone.registration == .registered ? "Verbunden" : phone.registration.label,
                           systemImage: phone.registration == .registered ? "circle.fill" : "circle")
                         .font(.caption).foregroundStyle(phone.registration == .registered ? .green : .secondary)
-                    Text("Liblinphone").font(.caption).foregroundStyle(.secondary)
                     if let membership = customer.activeCloudMembership {
                         Text(membership.name).font(.caption)
                         Text("Nebenstelle " + (membership.number ?? "–")).font(.caption).foregroundStyle(.secondary)
@@ -74,16 +121,19 @@ struct MacRootView: View {
                     MacCallView()
                 } else if destination == .diagnostics {
                     MacDiagnosticsView(diagnostics: phone.diagnostics)
-                } else if customer.needsPasswordSetup {
+                } else if customer.needsPasswordSetup && !isPreview {
                     MacAccountView()
                 } else if destination == .team && customer.signedIn {
                     TeamView()
-                } else if (isPreview || customer.signedIn && phone.hasSavedPassword) && destination != .account {
+                } else if destination == .addressbook && customer.signedIn {
+                    MacAddressBookView()
+                } else if (isPreview || customer.signedIn) && destination != .account {
                     switch destination ?? .dial {
                     case .conversation, .dial: MacDialView(number: $dialNumber)
                     case .favorites: MacFavoritesView()
                     case .recents: MacRecentsView()
                     case .contacts: MacContactsView()
+                    case .addressbook: MacAddressBookView()
                     case .team: TeamView()
                     case .account: MacAccountView()
                     case .diagnostics: MacDiagnosticsView(diagnostics: phone.diagnostics)
@@ -99,7 +149,7 @@ struct MacRootView: View {
                 }
             }
             .navigationTitle(phone.call != nil && destination == .conversation ? "Gespräch" :
-                (customer.needsPasswordSetup ? "Konto einrichten" : isPreview || customer.signedIn ? (destination?.rawValue ?? "fonu") : "Anmelden"))
+                (customer.needsPasswordSetup && !isPreview ? "Konto einrichten" : isPreview || customer.signedIn ? (destination?.rawValue ?? "Fonado") : "Anmelden"))
             .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
             .toolbar { ToolbarItemGroup { AvailabilityProfileMenu(); MacAudioMenu(isPresented: $audioPresented) } }
         }
@@ -110,6 +160,9 @@ struct MacRootView: View {
                 .inspectorColumnWidth(min: 360, ideal: 360, max: 400)
         }
         .onAppear { if isTeamPreview { destination = .team } }
+        .onChange(of: customer.addressBookEnabled) { _, enabled in
+            if !enabled && destination == .addressbook { destination = .dial }
+        }
         .onReceive(navigation.$destination) { requested in
             guard let requested else { return }
             destination = requested
@@ -120,7 +173,7 @@ struct MacRootView: View {
             availabilityPresented = true
             navigation.profilesRequested = false
         }
-        .sheet(isPresented:$availabilityPresented) { AvailabilityView() }
+        .sheet(isPresented:$availabilityPresented) { MacScaledPresentation { AvailabilityView() } }
         .onChange(of: audioPresented) { _, presented in
             if presented {
                 previousColumnVisibility = columnVisibility
@@ -145,8 +198,13 @@ struct MacAccountView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                GroupBox { SIPConnectionStatusView().frame(maxWidth: .infinity, alignment: .leading) }
-                Text(customer.signedIn ? "Dein fonu-Konto" : "Willkommen auf deinem Mac")
+                if phone.connectionRestarting || phone.connectionFailure != nil {
+                    GroupBox {
+                        SIPConnectionStatusView(showsSDKDetails: false)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                Text(customer.signedIn ? "Dein Fonado-Konto" : "Willkommen auf deinem Mac")
                     .font(.largeTitle.bold())
                 Text(customer.signedIn ? customer.email : "Melde dich an. Deine Firma und Nebenstelle werden automatisch eingerichtet.")
                     .foregroundStyle(.secondary)
@@ -161,7 +219,7 @@ struct MacAccountView: View {
                             SecureField("Passwort", text: $customer.password)
                                 .onSubmit { login() }
                             Button("Anmelden", action: login)
-                                .buttonStyle(.borderedProminent)
+                                .buttonStyle(MacPrimaryButtonStyle())
                                 .disabled(customer.email.isEmpty || customer.password.isEmpty)
                         } else if customer.challenge.isEmpty {
                             Button("Anmeldecode senden") { Task { await customer.sendCode() } }
@@ -170,7 +228,7 @@ struct MacAccountView: View {
                             TextField("Sechsstelliger Code", text: $customer.code)
                                 .onSubmit { Task { await customer.verify() } }
                             Button("Code bestätigen") { Task { await customer.verify() } }
-                                .buttonStyle(.borderedProminent).disabled(customer.code.count != 6)
+                                .buttonStyle(MacPrimaryButtonStyle()).disabled(customer.code.count != 6)
                             Button("Neuen Code senden") { Task { await customer.sendCode() } }
                         }
                     }.textFieldStyle(.roundedBorder).controlSize(.large).frame(maxWidth: 380)
@@ -180,13 +238,13 @@ struct MacAccountView: View {
                             VStack(alignment: .leading, spacing: 14) {
                                 if !customer.rememberedDevice || !customer.challenge.isEmpty {
                                     Text("Diesen Mac merken").font(.title2.bold())
-                                    Text("Bestätige diesen Mac einmal mit dem E-Mail-Code. Danach bleibt fonu hier automatisch angemeldet.")
+                                    Text("Bestätige diesen Mac einmal mit dem E-Mail-Code. Danach bleibt Fonado hier automatisch angemeldet.")
                                     if customer.challenge.isEmpty {
                                         Button("E-Mail-Code senden") { Task { await customer.sendCode() } }
                                     } else {
                                         TextField("Sechsstelliger Code", text: $customer.code).textContentType(.oneTimeCode)
                                         Button("Mac bestätigen") { Task { await customer.verify() } }
-                                            .buttonStyle(.borderedProminent).disabled(customer.code.count != 6)
+                                            .buttonStyle(MacPrimaryButtonStyle()).disabled(customer.code.count != 6)
                                     }
                                 } else if customer.needsPasswordSetup {
                                     Text("Dein Kennwort festlegen").font(.title2.bold())
@@ -195,7 +253,7 @@ struct MacAccountView: View {
                                     SecureField("Kennwort wiederholen", text: $customer.passwordConfirmation).textContentType(.newPassword)
                                         .onSubmit { Task { await customer.setOwnPassword() } }
                                     Button("Kennwort speichern") { Task { await customer.setOwnPassword() } }
-                                        .buttonStyle(.borderedProminent)
+                                        .buttonStyle(MacPrimaryButtonStyle())
                                         .disabled(customer.password.count < 15 || customer.password != customer.passwordConfirmation)
                                     Button("E-Mail erneut bestätigen") { Task { await customer.sendCode() } }
                                 }
@@ -204,6 +262,7 @@ struct MacAccountView: View {
                     } else if customer.rememberedDevice {
                         Label("Dieser Mac bleibt angemeldet", systemImage: "checkmark.shield")
                     }
+                    ProfilePortrait(thumbnail: customer.pictureThumbnail, initials: String(customer.email.prefix(1)).uppercased(), size: 64)
                     ForEach(customer.cloudMemberships) { membership in
                         GroupBox {
                             VStack(alignment: .leading, spacing: 10) {
@@ -238,11 +297,12 @@ struct MacAccountView: View {
                     if customer.cloudMemberships.isEmpty {
                         Text("Noch keine Firma zugeordnet. Verwende dasselbe Konto wie auf deinem iPhone.")
                     }
-                    Text("Für eingehende Anrufe muss fonu laufen und dein Mac wach sein. Du kannst das Fenster schließen; fonu bleibt in der Menüleiste geöffnet. Gleichzeitiges Klingeln auf iPhone und Mac ist in dieser Testversion noch nicht verfügbar.")
+                    Text("Für eingehende Anrufe muss Fonado laufen und dein Mac wach sein. Du kannst das Fenster schließen; Fonado bleibt in der Menüleiste geöffnet. Gleichzeitiges Klingeln auf iPhone und Mac ist in dieser Testversion noch nicht verfügbar.")
                         .font(.callout).foregroundStyle(.secondary)
                     HStack {
                         Button("Status aktualisieren") { Task { await customer.refresh() } }
-                        Link("Kundenbereich öffnen", destination: URL(string: "https://dev.fonoo.app/kunden/")!)
+                        Link("Profilbild ändern", destination: URL(string: "https://dev.fonado.app/kunden/?section=profile")!).foregroundStyle(MacStyle.accent)
+                        Link("Kundenbereich öffnen", destination: URL(string: "https://dev.fonado.app/kunden/")!).foregroundStyle(MacStyle.accent)
                     }
                     Button("Abmelden") { Task { await customer.signOut() } }.disabled(phone.busy)
                 }
@@ -285,7 +345,7 @@ struct MacDialView: View {
             }
             Button(action: dial) {
                 Label("Anrufen", systemImage: "phone.fill").frame(maxWidth: .infinity)
-            }.buttonStyle(.borderedProminent).controlSize(.large)
+            }.buttonStyle(MacPrimaryButtonStyle()).controlSize(.large)
                 .disabled(number.trimmingCharacters(in: .whitespaces).isEmpty || phone.busy || phone.registration != .registered)
             Spacer(minLength: 10)
         }.frame(maxWidth: 340).padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -299,8 +359,7 @@ struct MacContactRow: View {
     let contact: Contact
     var body: some View {
         HStack(spacing: 12) {
-            Text(contact.initials).font(.headline).frame(width: 38, height: 38)
-                .background(MacStyle.accent.opacity(0.12), in: Circle())
+            ProfilePortrait(thumbnail: customer.presenceMember(for: contact)?.picture, initials: contact.initials, size: 38)
             VStack(alignment: .leading, spacing: 4) {
                 Text(contact.name).font(.headline)
                 Text(contact.number).foregroundStyle(.secondary)
@@ -350,7 +409,7 @@ struct MacFavoritesView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { MacFavoriteSyncNotice().padding(12) }
-        .sheet(isPresented: $groupsPresented) { MacFavoriteGroupEditor() }
+        .sheet(isPresented: $groupsPresented) { MacScaledPresentation { MacFavoriteGroupEditor() } }
     }
 }
 
@@ -374,7 +433,7 @@ private struct MacFavoriteSyncNotice: View {
 }
 
 private struct MacFavoriteGroupEditor: View {
-    private static let dragPrefix = "fonoo-favorite-group:"
+    private static let dragPrefix = "fonado-favorite-group:"
     @EnvironmentObject private var phone: PhoneStore
     @Environment(\.dismiss) private var dismiss
     @State private var newName = ""
@@ -476,7 +535,7 @@ struct MacRecentsView: View {
                                 Image(systemName: "ellipsis")
                             }.menuStyle(.borderlessButton).fixedSize()
                                 .accessibilityLabel("Anrufaktionen")
-                                .help("Details und Löschen")
+                                .help("Anrufdetails, Rückrufbitte und Löschen")
                         }.font(.caption).foregroundStyle(.secondary)
                     }.padding(.vertical, 4)
                         .contextMenu { actions(for: recent) }
@@ -496,7 +555,7 @@ struct MacRecentsView: View {
                 }.disabled(phone.manager.onHistoryRefresh == nil)
             }
         }
-        .sheet(item: $detailCall) { MacRecentCallDetails(recent: $0) }
+        .sheet(item: $detailCall) { recent in MacScaledPresentation { MacRecentCallDetails(recent: recent) } }
         .alert("Anruf löschen?", isPresented: $deleteConfirmation, presenting: deleteCandidate) { recent in
             Button("Abbrechen", role: .cancel) { deleteCandidate = nil }
             Button("Löschen", role: .destructive) {
@@ -506,11 +565,12 @@ struct MacRecentsView: View {
         } message: { _ in
             Text(phone.manager.historyStatus.isEmpty
                  ? "Dieser Eintrag wird aus der Anrufliste auf diesem Mac gelöscht."
-                 : "Dieser Eintrag wird für dein fonu-Konto in dieser Firma auf allen Geräten gelöscht. Die Anruflisten anderer Teammitglieder bleiben erhalten.")
+                 : "Dieser Eintrag wird für dein Fonado-Konto in dieser Firma auf allen Geräten gelöscht. Die Anruflisten anderer Teammitglieder bleiben erhalten.")
         }
     }
     @ViewBuilder private func actions(for recent: RecentCall) -> some View {
         Button("Anrufdetails", systemImage: "info.circle") { detailCall = recent }
+        CallbackRequestButton(recent: recent)
         Divider()
         Button("Anruf löschen", systemImage: "trash", role: .destructive) {
             deleteCandidate = recent
@@ -540,6 +600,7 @@ private struct MacRecentCallDetails: View {
                 LabeledContent("Richtung", value: incoming ? "Eingehend" : "Ausgehend")
             }
             LabeledContent("Gesprächsdauer", value: durationText)
+            CallbackRequestButton(recent: recent)
             HStack {
                 Spacer()
                 Button("Fertig") { dismiss() }.keyboardShortcut(.defaultAction)
@@ -549,14 +610,19 @@ private struct MacRecentCallDetails: View {
 }
 
 struct MacContactsView: View {
+    @EnvironmentObject private var customer: CustomerAccount
     @StateObject private var directory = ContactsDirectory()
     @State private var query = ""
     var body: some View {
         VStack {
-            if directory.canRead {
-                List(directory.contacts.filter { query.isEmpty || $0.matches(query) }) { contact in
-                    ForEach(contact.numbers) { number in MacContactRow(contact: contact.callContact(for: number)) }
-                }.searchable(text: $query, prompt: "Name oder Telefonnummer")
+            List {
+                TeamAddressBookSection(directory: customer.teamDirectory, query: query)
+                if directory.canRead {
+                    Section("Mac-Kontakte") {
+                        ForEach(directory.contacts.filter { query.isEmpty || $0.matches(query) }) { contact in
+                            ForEach(contact.numbers) { number in MacContactRow(contact: contact.callContact(for: number)) }
+                        }
+                    }
             } else {
                 ContentUnavailableView {
                     Label("Kontakte auf deinem Mac", systemImage: "person.crop.rectangle")
@@ -569,10 +635,12 @@ struct MacContactsView: View {
                         Link("Datenschutzeinstellungen öffnen", destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Contacts")!)
                     }
                 }
-            }
+                }
+            }.searchable(text: $query, prompt: "Name, Position oder Telefonnummer")
             if directory.isLoading { ProgressView() }
             if let error = directory.errorMessage { Text(error).padding() }
         }.task { await directory.refresh() }
+            .task(id: customer.activeCloudMembership?.id) { await customer.refreshTeam() }
     }
 }
 
@@ -643,12 +711,12 @@ private struct MacAudioSettingsView: View {
                     Text(meter.message).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     if meter.status == .needsPermission {
                         Button("Mikrofon testen") { permissionRequest += 1 }
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(MacPrimaryButtonStyle())
                     } else if meter.status == .denied {
                         Link("Mikrofon freigeben", destination: URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")!)
                     }
                 }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(MacStyle.accent.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+                    .background(MacStyle.action.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -742,7 +810,7 @@ private struct MacCallReturnBar: View {
                 Image(systemName: "chevron.right").font(.caption)
             }.padding(.horizontal, 20).padding(.vertical, 12)
                 .contentShape(Rectangle())
-        }.buttonStyle(.plain).background(MacStyle.accent.opacity(0.07))
+        }.buttonStyle(.plain).background(MacStyle.action.opacity(0.07))
             .accessibilityLabel("Zum Gespräch mit " + activity.snapshot.contact)
     }
 }
@@ -800,7 +868,7 @@ struct MacCallView: View {
                                     controlLabel("Ziffern", symbol: "circle.grid.3x3.fill")
                                 }.buttonStyle(MacCallControlStyle(selected: showTones))
                                     .disabled(!canSendTones(call))
-                                    .popover(isPresented: $showTones, arrowEdge: .bottom) { tonePad(call: call) }
+                                    .popover(isPresented: $showTones, arrowEdge: .bottom) { MacScaledPresentation { tonePad(call: call) } }
 
                                 if phone.manager.consultation == nil {
                                     Button { phone.toggleHold() } label: {
@@ -811,7 +879,7 @@ struct MacCallView: View {
                                         controlLabel("Vermitteln", symbol: "arrow.triangle.branch")
                                     }.buttonStyle(MacCallControlStyle(selected: showTransfer))
                                         .disabled(!phone.manager.canTransfer)
-                                        .popover(isPresented: $showTransfer, arrowEdge: .bottom) { transferPanel }
+                                        .popover(isPresented: $showTransfer, arrowEdge: .bottom) { MacScaledPresentation { transferPanel } }
                                 } else {
                                     Button { phone.manager.returnToOriginal() } label: {
                                         controlLabel("Zurück", symbol: "arrow.uturn.backward")
@@ -880,7 +948,7 @@ struct MacCallView: View {
                 .onSubmit { beginConsultation() }
             Button { beginConsultation() } label: {
                 Text("Rückfrage starten").frame(maxWidth: .infinity)
-            }.buttonStyle(.borderedProminent).controlSize(.large)
+            }.buttonStyle(MacPrimaryButtonStyle()).controlSize(.large)
                 .disabled(!phone.manager.canTransfer || transferNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             Button {
                 phone.manager.transferDirect(transferNumber.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -905,11 +973,11 @@ private struct MacCallControlStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(selected ? AnyShapeStyle(MacStyle.accent) : AnyShapeStyle(.primary))
-            .background(selected ? MacStyle.accent.opacity(0.13) : Color.primary.opacity(configuration.isPressed ? 0.09 : 0.045),
+            .background(selected ? MacStyle.action.opacity(0.13) : Color.primary.opacity(configuration.isPressed ? 0.09 : 0.045),
                 in: RoundedRectangle(cornerRadius: 14))
             .overlay {
                 RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(selected ? MacStyle.accent.opacity(0.28) : Color.primary.opacity(0.07))
+                    .strokeBorder(selected ? MacStyle.action.opacity(0.28) : Color.primary.opacity(0.07))
             }
             .opacity(enabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
             .contentShape(RoundedRectangle(cornerRadius: 14))

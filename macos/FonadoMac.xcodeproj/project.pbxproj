@@ -53,13 +53,13 @@
 			<key>isa</key>
 			<string>PBXNativeTarget</string>
 			<key>name</key>
-			<string>fonuMac</string>
+			<string>FonadoMac</string>
 			<key>packageProductDependencies</key>
 			<array>
 				<string>4550252E496883E654EB6653</string>
 			</array>
 			<key>productName</key>
-			<string>fonu</string>
+			<string>Fonado</string>
 			<key>productReference</key>
 			<string>38A007151ABE87CC01A5B6E9</string>
 			<key>productType</key>
@@ -79,7 +79,7 @@
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>fonuMac/MacCallActivity.swift</string>
+			<string>FonadoMac/MacCallActivity.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -94,6 +94,13 @@
 		<dict>
 			<key>fileRef</key>
 			<string>DBB9AF09ED3761E984925738</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
+		<key>245B30970225D276A6BB2C45</key>
+		<dict>
+			<key>fileRef</key>
+			<string>D528EA33647C80B7DE28BDDF</string>
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
@@ -151,6 +158,13 @@
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
+		<key>368EA0F5BA582282350798CF</key>
+		<dict>
+			<key>fileRef</key>
+			<string>B9DB7DC36B5716A29E65E9C5</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
 		<key>38A007151ABE87CC01A5B6E9</key>
 		<dict>
 			<key>explicitFileType</key>
@@ -160,7 +174,7 @@
 			<key>isa</key>
 			<string>PBXFileReference</string>
 			<key>path</key>
-			<string>fonu.app</string>
+			<string>Fonado.app</string>
 			<key>sourceTree</key>
 			<string>BUILT_PRODUCTS_DIR</string>
 		</dict>
@@ -171,7 +185,7 @@
 			<key>lastKnownFileType</key>
 			<string>folder.assetcatalog</string>
 			<key>path</key>
-			<string>fonuMac/Assets.xcassets</string>
+			<string>FonadoMac/Assets.xcassets</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -202,10 +216,24 @@
 			<key>productName</key>
 			<string>linphonesw</string>
 		</dict>
+		<key>4785E2B6E3C5D014842B9A97</key>
+		<dict>
+			<key>fileRef</key>
+			<string>B94B60F2AA41C8530C01DBA5</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
 		<key>4C28CD751C987C675FA218D2</key>
 		<dict>
 			<key>fileRef</key>
 			<string>3F502EB52485FF032E8C0F74</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
+		<key>4D94856CA293463A999BDC9B</key>
+		<dict>
+			<key>fileRef</key>
+			<string>E717D1C1DCDC4D6BA5EAFE30</string>
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
@@ -245,13 +273,13 @@
 				<key>ASSETCATALOG_COMPILER_APPICON_NAME</key>
 				<string>AppIcon</string>
 				<key>CODE_SIGN_ENTITLEMENTS</key>
-				<string>fonuMac/fonuMac.entitlements</string>
+				<string>FonadoMac/FonadoMac.entitlements</string>
 				<key>CODE_SIGN_STYLE</key>
 				<string>Automatic</string>
 				<key>COMBINE_HIDPI_IMAGES</key>
 				<string>YES</string>
 				<key>CURRENT_PROJECT_VERSION</key>
-				<string>30</string>
+				<string>45</string>
 				<key>DEVELOPMENT_TEAM</key>
 				<string>T8KX8P7FUS</string>
 				<key>ENABLE_APP_SANDBOX</key>
@@ -261,7 +289,7 @@
 				<key>GENERATE_INFOPLIST_FILE</key>
 				<string>NO</string>
 				<key>INFOPLIST_FILE</key>
-				<string>fonuMac/Info.plist</string>
+				<string>FonadoMac/Info.plist</string>
 				<key>LD_RUNPATH_SEARCH_PATHS</key>
 				<array>
 					<string>$(inherited)</string>
@@ -274,9 +302,9 @@
 				<key>ONLY_ACTIVE_ARCH</key>
 				<string>YES</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
-				<string>app.fonoo.macos</string>
+				<string>ai.fonado.macos</string>
 				<key>PRODUCT_NAME</key>
-				<string>fonu</string>
+				<string>Fonado</string>
 				<key>SDKROOT</key>
 				<string>macosx</string>
 				<key>SUPPORTED_PLATFORMS</key>
@@ -307,6 +335,13 @@
 				<string>5.5.23</string>
 			</dict>
 		</dict>
+		<key>5BA43F015976C6E61A85380F</key>
+		<dict>
+			<key>fileRef</key>
+			<string>A2937597A5DF391C333E1025</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
 		<key>5D4BA0E51B4041602C368765</key>
 		<dict>
 			<key>isa</key>
@@ -325,9 +360,16 @@
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>fonuMac/MacViews.swift</string>
+			<string>FonadoMac/MacViews.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
+		</dict>
+		<key>63D98626548CF439268D427B</key>
+		<dict>
+			<key>fileRef</key>
+			<string>B67890D0CBF03333DDAB4002</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
 		</dict>
 		<key>651ECA092BE81738918D8CDB</key>
 		<dict>
@@ -342,6 +384,17 @@
 			<string>Release</string>
 			<key>isa</key>
 			<string>XCConfigurationList</string>
+		</dict>
+		<key>6ADA772070263A4FF10E921E</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>../Shared/TeamMember.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
 		</dict>
 		<key>70AF62A8B14531D4AAD030C0</key>
 		<dict>
@@ -370,6 +423,17 @@
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<integer>0</integer>
 		</dict>
+		<key>81E620CE7EA3FE7555DEBFF8</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>FonadoMac/MacDiagnosticsView.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
 		<key>839FDDFE3FAA14ECD9A9AFA2</key>
 		<dict>
 			<key>fileRef</key>
@@ -381,6 +445,13 @@
 		<dict>
 			<key>fileRef</key>
 			<string>159ABB4BFF4917B97045ED89</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
+		<key>86B5B1FECC7F7B4AB0B5E352</key>
+		<dict>
+			<key>fileRef</key>
+			<string>81E620CE7EA3FE7555DEBFF8</string>
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
@@ -457,6 +528,39 @@
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
+		<key>9C8D833AC78856189172D440</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>../Shared/SIPConnectionStatusView.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>A09F15B65BFFA4C5858347E4</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>../Shared/TeamDirectory.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>A2937597A5DF391C333E1025</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>FonadoMac/CallbackRequestButton.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>A3E5254A004A5709AB7CDF01</key>
 		<dict>
 			<key>isa</key>
@@ -464,7 +568,7 @@
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>fonuMac/AudioQualityChecks.swift</string>
+			<string>FonadoMac/AudioQualityChecks.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -513,6 +617,13 @@
 			<key>productRef</key>
 			<string>4550252E496883E654EB6653</string>
 		</dict>
+		<key>B0D0CEE921179AE977A7968A</key>
+		<dict>
+			<key>fileRef</key>
+			<string>CB0108FE165F9A5440A57048</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
 		<key>B28B7AF69320201D1CF206EB</key>
 		<dict>
 			<key>children</key>
@@ -551,11 +662,23 @@
 				<string>B94B60F2AA41C8530C01DBA5</string>
 				<string>E66AFEFD5A621EB78E2D7E80</string>
 				<string>E717D1C1DCDC4D6BA5EAFE30</string>
+				<string>DAA09CDDADBEB81EFA63E411</string>
+				<string>A2937597A5DF391C333E1025</string>
+				<string>8DAF9F70AC2141138626AC5D</string>
+				<string>32C4183CA2426329EF855647</string>
+				<string>DFC01BA727F5C129E177617F</string>
 			</array>
 			<key>isa</key>
 			<string>PBXGroup</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
+		</dict>
+		<key>B29AF1ADD717A02D30175385</key>
+		<dict>
+			<key>fileRef</key>
+			<string>DAA09CDDADBEB81EFA63E411</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
 		</dict>
 		<key>B5C93C658B54E1F7CD5940D4</key>
 		<dict>
@@ -564,6 +687,46 @@
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
+		<key>B67890D0CBF03333DDAB4002</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>FonadoMac/MacMiniCallWindow.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>B83F40138B6BB0CA2AF8AD3A</key>
+		<dict>
+			<key>fileRef</key>
+			<string>A09F15B65BFFA4C5858347E4</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
+		<key>B94B60F2AA41C8530C01DBA5</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>FonadoMac/MacDialpadFeedback.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>B9DB7DC36B5716A29E65E9C5</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>../Shared/TeamPreview.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>BB06D16F337B018E517C516C</key>
 		<dict>
 			<key>isa</key>
@@ -571,7 +734,7 @@
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>fonuMac/MacCallPreviewCore.swift</string>
+			<string>FonadoMac/MacCallPreviewCore.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -612,6 +775,11 @@
 				<string>4785E2B6E3C5D014842B9A97</string>
 				<string>ECB2387BD752E6D3AB915CC4</string>
 				<string>4D94856CA293463A999BDC9B</string>
+				<string>B29AF1ADD717A02D30175385</string>
+				<string>5BA43F015976C6E61A85380F</string>
+				<string>E08047761F7943B5BAD7ECAF</string>
+				<string>335082D965CF4AF5692C8A9B</string>
+				<string>01F82CF6DA869FDE96EEC533</string>
 			</array>
 			<key>isa</key>
 			<string>PBXSourcesBuildPhase</string>
@@ -625,9 +793,16 @@
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>fonuMac/MacAudioManager.swift</string>
+			<string>FonadoMac/MacAudioManager.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
+		</dict>
+		<key>C11B7FE7A91939B6CEA3C522</key>
+		<dict>
+			<key>fileRef</key>
+			<string>9C8D833AC78856189172D440</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
 		</dict>
 		<key>C1A3989CFA6758F5F5D902C6</key>
 		<dict>
@@ -685,6 +860,17 @@
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 		</dict>
+		<key>CB0108FE165F9A5440A57048</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>../Shared/TeamView.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
 		<key>D30FA7083F7A8E55CC2FDAA4</key>
 		<dict>
 			<key>fileRef</key>
@@ -703,6 +889,17 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>D528EA33647C80B7DE28BDDF</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>../Shared/SIPConnectionCoordinator.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
 		<key>D626BAFC29F4ABA3EA7610B5</key>
 		<dict>
 			<key>isa</key>
@@ -710,7 +907,18 @@
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>fonuMac/fonuMacApp.swift</string>
+			<string>FonadoMac/FonadoMacApp.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>DAA09CDDADBEB81EFA63E411</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>FonadoMac/CallbackRequestMail.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -722,6 +930,28 @@
 			<string>sourcecode.swift</string>
 			<key>path</key>
 			<string>../Shared/PhoneStore.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>E66AFEFD5A621EB78E2D7E80</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>../Shared/FavoriteGroups.swift</string>
+			<key>sourceTree</key>
+			<string>SOURCE_ROOT</string>
+		</dict>
+		<key>E717D1C1DCDC4D6BA5EAFE30</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>FonadoMac/MacMenuBarPlacement.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -743,6 +973,13 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
+		<key>ECB2387BD752E6D3AB915CC4</key>
+		<dict>
+			<key>fileRef</key>
+			<string>E66AFEFD5A621EB78E2D7E80</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+		</dict>
 		<key>F41CF87CE865D89DDCD067D6</key>
 		<dict>
 			<key>isa</key>
@@ -761,13 +998,13 @@
 				<key>ASSETCATALOG_COMPILER_APPICON_NAME</key>
 				<string>AppIcon</string>
 				<key>CODE_SIGN_ENTITLEMENTS</key>
-				<string>fonuMac/fonuMac.entitlements</string>
+				<string>FonadoMac/FonadoMac.entitlements</string>
 				<key>CODE_SIGN_STYLE</key>
 				<string>Automatic</string>
 				<key>COMBINE_HIDPI_IMAGES</key>
 				<string>YES</string>
 				<key>CURRENT_PROJECT_VERSION</key>
-				<string>30</string>
+				<string>45</string>
 				<key>DEVELOPMENT_TEAM</key>
 				<string>T8KX8P7FUS</string>
 				<key>ENABLE_APP_SANDBOX</key>
@@ -777,7 +1014,7 @@
 				<key>GENERATE_INFOPLIST_FILE</key>
 				<string>NO</string>
 				<key>INFOPLIST_FILE</key>
-				<string>fonuMac/Info.plist</string>
+				<string>FonadoMac/Info.plist</string>
 				<key>LD_RUNPATH_SEARCH_PATHS</key>
 				<array>
 					<string>$(inherited)</string>
@@ -788,9 +1025,9 @@
 				<key>MARKETING_VERSION</key>
 				<string>0.1.0</string>
 				<key>PRODUCT_BUNDLE_IDENTIFIER</key>
-				<string>app.fonoo.macos</string>
+				<string>ai.fonado.macos</string>
 				<key>PRODUCT_NAME</key>
-				<string>fonu</string>
+				<string>Fonado</string>
 				<key>SDKROOT</key>
 				<string>macosx</string>
 				<key>SUPPORTED_PLATFORMS</key>
@@ -814,7 +1051,7 @@
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>fonuMac/MacCallStatusItem.swift</string>
+			<string>FonadoMac/MacCallStatusItem.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
@@ -838,6 +1075,13 @@
 			<string>Release</string>
 			<key>isa</key>
 			<string>XCConfigurationList</string>
+		</dict>
+		<key>F8DF2687714D273DD1D9F7DC</key>
+		<dict>
+			<key>fileRef</key>
+			<string>6ADA772070263A4FF10E921E</string>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
 		</dict>
 		<key>FBDC4F23F93125BBEEAE800C</key>
 		<dict>
@@ -863,203 +1107,59 @@
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
-		<key>6ADA772070263A4FF10E921E</key>
+		<key>8DAF9F70AC2141138626AC5D</key>
 		<dict>
 			<key>isa</key>
 			<string>PBXFileReference</string>
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>../Shared/TeamMember.swift</string>
+			<string>FonadoMac/MacDisplayScale.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
-		<key>F8DF2687714D273DD1D9F7DC</key>
+		<key>E08047761F7943B5BAD7ECAF</key>
 		<dict>
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
-			<string>6ADA772070263A4FF10E921E</string>
+			<string>8DAF9F70AC2141138626AC5D</string>
 		</dict>
-		<key>A09F15B65BFFA4C5858347E4</key>
+		<key>32C4183CA2426329EF855647</key>
 		<dict>
 			<key>isa</key>
 			<string>PBXFileReference</string>
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>../Shared/TeamDirectory.swift</string>
+			<string>../Shared/LDAPAddressBook.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
-		<key>B83F40138B6BB0CA2AF8AD3A</key>
+		<key>335082D965CF4AF5692C8A9B</key>
 		<dict>
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
-			<string>A09F15B65BFFA4C5858347E4</string>
+			<string>32C4183CA2426329EF855647</string>
 		</dict>
-		<key>CB0108FE165F9A5440A57048</key>
+		<key>DFC01BA727F5C129E177617F</key>
 		<dict>
 			<key>isa</key>
 			<string>PBXFileReference</string>
 			<key>lastKnownFileType</key>
 			<string>sourcecode.swift</string>
 			<key>path</key>
-			<string>../Shared/TeamView.swift</string>
+			<string>FonadoMac/MacAddressBookView.swift</string>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
 		</dict>
-		<key>B0D0CEE921179AE977A7968A</key>
+		<key>01F82CF6DA869FDE96EEC533</key>
 		<dict>
 			<key>isa</key>
 			<string>PBXBuildFile</string>
 			<key>fileRef</key>
-			<string>CB0108FE165F9A5440A57048</string>
-		</dict>
-		<key>B9DB7DC36B5716A29E65E9C5</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>../Shared/TeamPreview.swift</string>
-			<key>sourceTree</key>
-			<string>&lt;group&gt;</string>
-		</dict>
-		<key>368EA0F5BA582282350798CF</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>B9DB7DC36B5716A29E65E9C5</string>
-		</dict>
-		<key>B67890D0CBF03333DDAB4002</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>fonuMac/MacMiniCallWindow.swift</string>
-			<key>sourceTree</key>
-			<string>&lt;group&gt;</string>
-		</dict>
-		<key>63D98626548CF439268D427B</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>B67890D0CBF03333DDAB4002</string>
-		</dict>
-		<key>D528EA33647C80B7DE28BDDF</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>../Shared/SIPConnectionCoordinator.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>245B30970225D276A6BB2C45</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>D528EA33647C80B7DE28BDDF</string>
-		</dict>
-		<key>9C8D833AC78856189172D440</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>../Shared/SIPConnectionStatusView.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>C11B7FE7A91939B6CEA3C522</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>9C8D833AC78856189172D440</string>
-		</dict>
-		<key>81E620CE7EA3FE7555DEBFF8</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>fonuMac/MacDiagnosticsView.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>86B5B1FECC7F7B4AB0B5E352</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>81E620CE7EA3FE7555DEBFF8</string>
-		</dict>
-		<key>B94B60F2AA41C8530C01DBA5</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>fonuMac/MacDialpadFeedback.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>4785E2B6E3C5D014842B9A97</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>B94B60F2AA41C8530C01DBA5</string>
-		</dict>
-		<key>E66AFEFD5A621EB78E2D7E80</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>../Shared/FavoriteGroups.swift</string>
-			<key>sourceTree</key>
-			<string>SOURCE_ROOT</string>
-		</dict>
-		<key>ECB2387BD752E6D3AB915CC4</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
-			<key>fileRef</key>
-			<string>E66AFEFD5A621EB78E2D7E80</string>
-		</dict>
-		<key>E717D1C1DCDC4D6BA5EAFE30</key>
-		<dict>
-			<key>isa</key>
-			<string>PBXFileReference</string>
-			<key>lastKnownFileType</key>
-			<string>sourcecode.swift</string>
-			<key>path</key>
-			<string>fonuMac/MacMenuBarPlacement.swift</string>
-			<key>sourceTree</key>
-			<string>&lt;group&gt;</string>
-		</dict>
-		<key>4D94856CA293463A999BDC9B</key>
-		<dict>
-			<key>fileRef</key>
-			<string>E717D1C1DCDC4D6BA5EAFE30</string>
-			<key>isa</key>
-			<string>PBXBuildFile</string>
+			<string>DFC01BA727F5C129E177617F</string>
 		</dict>
 	</dict>
 	<key>rootObject</key>

@@ -4,7 +4,7 @@ import AppKit
 @MainActor
 final class MacDialpadFeedback {
     static let shared = MacDialpadFeedback()
-    static let preferenceKey = "fonoo.macos.dialpadSounds"
+    static let preferenceKey = "fonado.macos.dialpadSounds"
     private var sounds: [String: NSSound] = [:]
     private var playing: NSSound?
 

@@ -99,7 +99,7 @@ struct MacAudioHardware {
 /// A local input-only preview. Session work and sample callbacks share one queue;
 /// no samples leave this object, and no file, speaker output or network is used.
 private final class MacMicrophoneCapture: NSObject, AVCaptureAudioDataOutputSampleBufferDelegate, @unchecked Sendable {
-    private let queue = DispatchQueue(label: "app.fonoo.microphone-preview")
+    private let queue = DispatchQueue(label: "app.fonado.microphone-preview")
     private var session: AVCaptureSession?
     private var onLevel: (@Sendable (Float) -> Void)?
     private var lastReport = -Double.infinity

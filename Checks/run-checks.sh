@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
-CHECK_BUILD_DIR="${FONU_CHECK_BUILD_DIR:-build/checks}"
+CHECK_BUILD_DIR="${FONADO_CHECK_BUILD_DIR:-build/checks}"
 mkdir -p "$CHECK_BUILD_DIR/module-cache"
 swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   Shared/CallSession.swift Shared/SIPAccount.swift Shared/SIPCore.swift Shared/Diagnostics.swift \
@@ -16,17 +16,26 @@ swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   -o "$CHECK_BUILD_DIR/ContactSearchChecks"
 "$CHECK_BUILD_DIR/ContactSearchChecks"
 swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
+  Shared/CallSession.swift Shared/DeviceContact.swift Shared/ContactsDirectory.swift \
+  Checks/ContactsDirectoryChecks.swift -o "$CHECK_BUILD_DIR/ContactsDirectoryChecks"
+"$CHECK_BUILD_DIR/ContactsDirectoryChecks"
+swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   Shared/SIPAccount.swift Checks/NATChecks.swift -o "$CHECK_BUILD_DIR/NATChecks"
 "$CHECK_BUILD_DIR/NATChecks"
 swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   Shared/CallSession.swift Shared/SIPAccount.swift Shared/SIPCore.swift Shared/Diagnostics.swift \
   Shared/IncomingCallCoordinator.swift Checks/IncomingCallChecks.swift -o "$CHECK_BUILD_DIR/IncomingCallChecks"
 "$CHECK_BUILD_DIR/IncomingCallChecks"
-plutil -lint macos/fonuMac.xcodeproj/project.pbxproj
+plutil -lint macos/FonadoMac.xcodeproj/project.pbxproj
 
 swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   Shared/CallSession.swift Checks/CallHistoryChecks.swift -o "$CHECK_BUILD_DIR/CallHistoryChecks"
 "$CHECK_BUILD_DIR/CallHistoryChecks"
+
+swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
+  Shared/CallSession.swift macos/FonadoMac/CallbackRequestMail.swift \
+  macos/Checks/CallbackRequestChecks.swift -o "$CHECK_BUILD_DIR/CallbackRequestChecks"
+"$CHECK_BUILD_DIR/CallbackRequestChecks"
 
 swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   Shared/CallSession.swift Checks/CloudHistoryChecks.swift -o "$CHECK_BUILD_DIR/CloudHistoryChecks"
@@ -43,6 +52,10 @@ swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   Shared/CallSession.swift Shared/TeamMember.swift Shared/TeamDirectory.swift \
   Checks/TeamDirectoryChecks.swift -o "$CHECK_BUILD_DIR/TeamDirectoryChecks"
 "$CHECK_BUILD_DIR/TeamDirectoryChecks"
+swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
+  Shared/CallSession.swift Shared/TeamMember.swift Shared/LDAPAddressBook.swift \
+  Checks/LDAPAddressBookChecks.swift -o "$CHECK_BUILD_DIR/LDAPAddressBookChecks"
+"$CHECK_BUILD_DIR/LDAPAddressBookChecks"
 swiftc -parse-as-library -module-cache-path "$CHECK_BUILD_DIR/module-cache" \
   Shared/CallSession.swift Shared/TeamMember.swift Checks/DeviceProfileChecks.swift \
   -o "$CHECK_BUILD_DIR/DeviceProfileChecks"

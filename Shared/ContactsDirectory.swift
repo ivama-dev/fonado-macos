@@ -45,26 +45,32 @@ final class ContactsDirectory: ObservableObject {
     }
 
     func refresh() async {
+        await refresh(currentAccess: Self.currentAccess) {
+            let worker = Task.detached(priority: .userInitiated) { try Self.readContacts() }
+            return try await withTaskCancellationHandler {
+                try await worker.value
+            } onCancel: { worker.cancel() }
+        }
+    }
+
+    /// Keeps refresh state independent of Contacts I/O and permission prompts.
+    func refresh(currentAccess: () -> Access, using load: () async throws -> [DeviceContact]) async {
         revision += 1
         let requestRevision = revision
-        access = Self.currentAccess()
+        access = currentAccess()
         contacts = []
         errorMessage = nil
         isLoading = canRead
         guard canRead else { return }
+        defer { if requestRevision == revision { isLoading = false } }
         do {
-            let worker = Task.detached(priority: .userInitiated) { try Self.readContacts() }
-            let result = try await withTaskCancellationHandler {
-                try await worker.value
-            } onCancel: { worker.cancel() }
+            let result = try await load()
             guard requestRevision == revision, !Task.isCancelled else { return }
-            access = Self.currentAccess()
+            access = currentAccess()
             contacts = canRead ? result : []
-            isLoading = false
         } catch {
             guard requestRevision == revision, !Task.isCancelled else { return }
-            access = Self.currentAccess()
-            isLoading = false
+            access = currentAccess()
             errorMessage = canRead ? "Die Kontakte konnten nicht geladen werden. Bitte versuche es erneut." : nil
         }
     }

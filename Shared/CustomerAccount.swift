@@ -93,7 +93,9 @@ struct CloudMembership: Decodable, Identifiable {
     let id, name, role: String
     let number: String?
     let trial: Trial
-    enum CodingKeys: String, CodingKey { case id, name, role, trial; case number = "extension" }
+    let addressbook: AddressBook?
+    struct AddressBook: Decodable { let enabled, configured, resolve_incoming: Bool }
+    enum CodingKeys: String, CodingKey { case id, name, role, trial, addressbook; case number = "extension" }
     struct Trial: Decodable {
         let expires_at: Int?
         let expired: Bool
@@ -110,7 +112,8 @@ struct CallForwardingSettings: Decodable {
 private struct CloudSummary: Decodable {
     let tenants: [CloudMembership]
     let user: User?
-    struct User: Decodable { let id: String }
+    struct User: Decodable { let id: String; let picture: Picture? }
+    struct Picture: Decodable { let thumbnail: String? }
 }
 
 /// Pure selection policy: never infer another person's account or silently pick a company.
@@ -156,12 +159,20 @@ final class CustomerAccount: ObservableObject {
     @Published private(set) var signedIn = false
     @Published private(set) var status = ""
     @Published private(set) var company = ""
+    @Published private(set) var pictureThumbnail: String?
     @Published private(set) var cloudMemberships: [CloudMembership] = []
     let teamDirectory = TeamDirectory()
+    let addressBook = LDAPAddressBook()
+    @Published private(set) var addressBookEnabled = false
+    private var addressBookStatusChecked = Date.distantPast
     @Published private(set) var teamContext: TeamContext?
     @Published private(set) var availability: AvailabilitySnapshot?
     @Published private(set) var availabilityMessage = ""
     @Published private(set) var availabilitySaving = false
+    private var availabilityRequest = UUID()
+    private var phoneAvailabilityRequest = UUID()
+    private var phoneAvailabilityTenant: String?
+    private var availabilityMutation: UUID?
     @Published private(set) var teamPresence: TeamPresenceSnapshot?
     @Published private(set) var presenceContactNames: [String:String] = [:]
     private var presenceForeground = false
@@ -190,17 +201,17 @@ final class CustomerAccount: ObservableObject {
     private var favoritesSync: CloudFavoritesSync?
     private var historySync: CloudCallHistorySync?
     private var historyMemberships: Set<String>?
-    private let cloudSelectionKey = "fonoo.cloud.selected.v2"
+    private let cloudSelectionKey = "fonado.cloud.selected.v2"
     private var cloudEnrollmentInFlight = false
     private var pushToken: Data?
     private let deviceID: String = {
-        let key = "fonoo.push.deviceID"
+        let key = "fonado.push.deviceID"
         if let saved = UserDefaults.standard.string(forKey: key), UUID(uuidString: saved) != nil { return saved }
         let created = UUID().uuidString.lowercased()
         UserDefaults.standard.set(created, forKey: key)
         return created
     }()
-    private let endpoint = URL(string: "https://push.dev.fonoo.app/v1/account/")!
+    private let endpoint = URL(string: "https://api.fonado.ai/v1/account/")!
     private var session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 20
@@ -210,7 +221,7 @@ final class CustomerAccount: ObservableObject {
     }()
     private var keychain: [String: Any] {
         [kSecClass as String: kSecClassGenericPassword,
-         kSecAttrService as String: (Bundle.main.bundleIdentifier ?? "Fonoo") + ".customer",
+         kSecAttrService as String: (Bundle.main.bundleIdentifier ?? "Fonado") + ".customer",
          kSecAttrAccount as String: "session"]
     }
     #if DEBUG
@@ -257,6 +268,9 @@ final class CustomerAccount: ObservableObject {
             guard let self, self.teamContext?.tenantID == self.activeCloudMembership?.id else { return nil }
             return self.teamDirectory.snapshot?.resolvedContact(number: number)
         }
+        phone.resolveAddressBookContact = { [weak self] number in
+            await self?.lookupAddressBook(number)
+        }
         phoneObservation = phone.objectWillChange.sink { [weak self] in
             guard self?.deferredCloudSetup == true else { return }
             Task { @MainActor [weak self] in
@@ -301,10 +315,13 @@ final class CustomerAccount: ObservableObject {
     private func beginLogin(_ value: String) {
         phone?.cancelCloudRegistrationIntent()
         favoritesSync?.setContext(nil); phone?.clearFavoriteContext()
+        historySync?.setContext(nil)
         loginGeneration = UUID(); renewalTask?.cancel(); renewalTask = nil
         clearPresence()
         teamDirectory.setContext(nil)
-        teamContext = nil; availability = nil; availabilityMessage = ""; teamTenantChoice = nil; teamSessionID = UUID()
+        addressBook.setContext(nil, enabled: false, configured: false); addressBookEnabled = false
+        clearAvailability()
+        teamContext = nil; teamTenantChoice = nil; teamSessionID = UUID()
         token = value; signedIn = true
         accountLoaded = false
     }
@@ -353,7 +370,7 @@ final class CustomerAccount: ObservableObject {
         try await requestData(path, bodyData: body.map { try JSONEncoder().encode($0) })
     }
     private func requestData<T: Decodable>(_ path: String, bodyData: Data? = nil, cloud: Bool = false, retry: Bool = true) async throws -> T {
-        let base = cloud ? URL(string: "https://push.dev.fonoo.app/v1/cloud/")! : endpoint
+        let base = cloud ? URL(string: "https://api.fonado.ai/v1/cloud/")! : endpoint
         var request = URLRequest(url: base.appendingPathComponent(path))
         request.cachePolicy = .reloadIgnoringLocalCacheData
         if !token.isEmpty { request.setValue("Bearer " + token, forHTTPHeaderField: "Authorization") }
@@ -379,6 +396,9 @@ final class CustomerAccount: ObservableObject {
             }
             let text = (try? JSONDecoder().decode(Failure.self, from: data).error) ?? "Kontodienst vorübergehend nicht erreichbar."
             if cloud && path == "favorites" && http.statusCode == 409 { throw FavoriteError.serverConflict }
+            if cloud && path.hasPrefix("addressbook/") && [403, 404].contains(http.statusCode) {
+                throw LDAPAddressBookError.unavailable
+            }
             throw PhoneError.message(text)
         }
         return try JSONDecoder().decode(T.self, from: data)
@@ -448,6 +468,7 @@ final class CustomerAccount: ObservableObject {
         cloudMessage = ""
         do {
             let cloud: CloudSummary = try await requestData("me", cloud: true)
+            pictureThumbnail = cloud.user?.id == accountID ? cloud.user?.picture?.thumbnail : nil
             cloudMemberships = cloud.tenants
             historyMemberships = Set(cloud.tenants.map(\.id))
             updateTeamContext()
@@ -471,7 +492,7 @@ final class CustomerAccount: ObservableObject {
     }
     private func enrollDeviceIfReady() async {
         #if os(macOS)
-        pushStatus = "Erreichbar, solange fonu läuft und dein Mac wach ist."
+        pushStatus = "Erreichbar, solange Fonado läuft und dein Mac wach ist."
         return
         #else
         guard signedIn, !token.isEmpty else { return }
@@ -479,7 +500,7 @@ final class CustomerAccount: ObservableObject {
            selection["endpoint_id"] == phone.account.username {
             await enrollCloudPush(selection, phone: phone)
         } else {
-            pushStatus = "Bitte zuerst deine fonu-Cloud-Nebenstelle einrichten."
+            pushStatus = "Bitte zuerst deine Fonado-Cloud-Nebenstelle einrichten."
         }
         #endif
     }
@@ -501,7 +522,7 @@ final class CustomerAccount: ObservableObject {
         #endif
         struct Enrollment: Encodable {
             let tenant_id, device_id, endpoint_id, push_token, environment: String
-            let capability = "fonoo.cloud.push.v2"
+            let capability = "fonado.cloud.push.v2"
             let enabled: Bool
         }
         struct Result: Decodable { let status: String; let enabled: Bool }
@@ -539,6 +560,10 @@ final class CustomerAccount: ObservableObject {
         updateTeamContext()
     }
     private func updateTeamContext() {
+        let phoneTenant = activeCloudMembership?.id
+        if phoneAvailabilityTenant != phoneTenant {
+            phoneAvailabilityRequest = UUID(); phoneAvailabilityTenant = phoneTenant
+        }
         let chosen = teamTenantChoice.flatMap { choice in cloudMemberships.first { $0.id == choice } }
             ?? activeCloudMembership
             ?? (cloudMemberships.count == 1 ? cloudMemberships.first : nil)
@@ -546,8 +571,57 @@ final class CustomerAccount: ObservableObject {
             TeamContext(tenantID: $0.id, accountID: accountID, sessionID: teamSessionID)
         } : nil
         teamDirectory.setContext(context)
-        if teamContext != context { availability = nil; availabilityMessage = ""; clearPresence() }
+        if teamContext != context { clearAvailability(); clearPresence() }
         teamContext = context
+        let bookTenant = activeCloudMembership ?? (cloudMemberships.count == 1 ? cloudMemberships.first : nil)
+        let bookContext = signedIn && !accountID.isEmpty ? bookTenant.map {
+            TeamContext(tenantID: $0.id, accountID: accountID, sessionID: teamSessionID)
+        } : nil
+        addressBookEnabled = bookContext != nil && bookTenant?.addressbook?.enabled == true
+        addressBook.setContext(bookContext, enabled: addressBookEnabled, configured: bookTenant?.addressbook?.configured == true)
+        addressBookStatusChecked = .distantPast
+    }
+
+    func refreshAddressBookStatus() async {
+        guard let context = addressBook.context else { return }
+        addressBookStatusChecked = Date()
+        struct Status: Decodable { let tenant_id: String; let enabled, configured, resolve_incoming: Bool }
+        do {
+            let result: Status = try await requestData("addressbook/status",
+                bodyData: JSONEncoder().encode(["tenant_id": context.tenantID]), cloud: true)
+            guard addressBook.context == context, result.tenant_id == context.tenantID else { return }
+            addressBookEnabled = result.enabled
+            addressBook.setContext(context, enabled: result.enabled, configured: result.configured)
+        } catch LDAPAddressBookError.unavailable {
+            guard addressBook.context == context else { return }
+            addressBookEnabled = false
+            addressBook.setContext(context, enabled: false, configured: false)
+        } catch { /* Keep availability during a temporary connection failure; search rechecks access. */ }
+    }
+
+    func searchAddressBook(_ query: String) async {
+        guard let context = addressBook.context else { return }
+        await addressBook.search(query: query) {
+            let result: LDAPSearchResult = try await requestData("addressbook/search",
+                bodyData: JSONEncoder().encode(["tenant_id": context.tenantID, "query": query]), cloud: true)
+            guard addressBook.context == context else { throw CancellationError() }
+            return result
+        }
+    }
+
+    private func lookupAddressBook(_ number: String) async -> Contact? {
+        guard signedIn, let tenant = activeCloudMembership else { return nil }
+        let generation = loginGeneration
+        struct Result: Decodable { let tenant_id: String; let contact: LDAPContact? }
+        do {
+            let result: Result = try await requestData("addressbook/lookup",
+                bodyData: JSONEncoder().encode(["tenant_id": tenant.id, "number": number]), cloud: true)
+            guard !Task.isCancelled, loginGeneration == generation,
+                  activeCloudMembership?.id == tenant.id, result.tenant_id == tenant.id,
+                  let contact = result.contact else { return nil }
+            return Contact(id: "ldap:" + contact.id, name: contact.name,
+                           role: contact.company.isEmpty ? "Adressbuch" : contact.company, number: number)
+        } catch { return nil }
     }
 
     func setPresenceForeground(_ active: Bool) {
@@ -562,6 +636,7 @@ final class CustomerAccount: ObservableObject {
                 if let self, self.signedIn, self.accountLoaded, self.presenceForeground {
                     if self.teamDirectory.snapshot == nil && !self.teamDirectory.isLoading { await self.refreshTeam() }
                     await self.refreshPresence()
+                    if Date().timeIntervalSince(self.addressBookStatusChecked) >= 30 { await self.refreshAddressBookStatus() }
                 }
                 do { try await Task.sleep(for:.seconds(3)) } catch { return }
             }
@@ -607,6 +682,11 @@ final class CustomerAccount: ObservableObject {
             guard !Task.isCancelled, presenceForeground, teamContext == context, presenceGeneration == generation else { return }
             if let old = teamPresence?.observedAt, let fresh = validated.observedAt, fresh < old { return }
             teamPresence = validated
+            if let revision = validated.teamRevision, revision > 0,
+               teamDirectory.snapshot?.revision != revision, !teamDirectory.isLoading {
+                await refreshTeam()
+                guard !Task.isCancelled, presenceForeground, teamContext == context, presenceGeneration == generation else { return }
+            }
             presenceExpiry?.cancel()
             if let expiry = validated.expiresAt {
                 presenceExpiry = Task { @MainActor [weak self] in
@@ -642,7 +722,9 @@ final class CustomerAccount: ObservableObject {
             teamPresence = nil; presenceContactNames = [:]
         }
     }
-    func refreshTeam() async {
+    func refreshTeam() async { await refreshTeam(refreshAvailability: true) }
+
+    private func refreshTeam(refreshAvailability shouldRefreshAvailability: Bool) async {
         #if DEBUG
         if let teamPreviewSnapshot {
             await teamDirectory.refresh { teamPreviewSnapshot }
@@ -657,21 +739,53 @@ final class CustomerAccount: ObservableObject {
             guard teamContext == context else { throw CancellationError() }
             return result
         }
-        await refreshAvailability()
+        if teamContext == context, let snapshot = teamDirectory.snapshot {
+            pictureThumbnail = snapshot.members.first(where: { $0.id == context.accountID })?.picture
+        }
+        if shouldRefreshAvailability { await refreshAvailability() }
     }
 
-    func refreshAvailability() async {
+    private func invalidateAvailabilityRequests() {
+        availabilityRequest = UUID(); phoneAvailabilityRequest = UUID()
+    }
+
+    private func clearAvailability() {
+        invalidateAvailabilityRequests()
+        availabilityMutation = nil; availabilitySaving = false
+        availability = nil; availabilityMessage = ""
+    }
+
+    private func beginAvailabilityMutation() -> UUID {
+        invalidateAvailabilityRequests()
+        let mutation = UUID()
+        availabilityMutation = mutation; availabilitySaving = true
+        return mutation
+    }
+
+    private func finishAvailabilityMutation(_ mutation: UUID) {
+        guard availabilityMutation == mutation else { return }
+        availabilityMutation = nil; availabilitySaving = false
+    }
+
+    func refreshAvailability() async { await refreshAvailability(mutation: nil) }
+
+    private func refreshAvailability(mutation: UUID?) async {
+        // Polling/menu refreshes must not race a save or reuse its pre-save state.
+        guard availabilityMutation == mutation else { return }
         guard let context = teamContext else { availability = nil; return }
+        let request = UUID(); availabilityRequest = request
         do {
             let result: AvailabilitySnapshot = try await requestData("availability/read",
                 bodyData: JSONEncoder().encode(["tenant_id":context.tenantID]), cloud:true)
-            guard teamContext == context else { return }
+            guard !Task.isCancelled, teamContext == context, availabilityRequest == request,
+                  availabilityMutation == mutation else { return }
             guard result.schemaVersion == 1, result.tenantID == context.tenantID,
                   result.userID == context.accountID, result.selfUserID == context.accountID, result.profilesValid else { throw TeamDirectoryError.invalidResponse }
             availability = result; availabilityMessage = ""
             applyPhoneAvailability(result)
         } catch {
-            guard teamContext == context else { return }
+            guard !Task.isCancelled, teamContext == context, availabilityRequest == request,
+                  availabilityMutation == mutation else { return }
             availabilityMessage = error.localizedDescription
         }
     }
@@ -684,12 +798,14 @@ final class CustomerAccount: ObservableObject {
     }
 
     private func syncActivePhoneAvailability() async {
-        guard let active = activeCloudMembership, active.id != teamContext?.tenantID else { return }
+        guard availabilityMutation == nil, let active = activeCloudMembership, active.id != teamContext?.tenantID else { return }
         let session = teamSessionID, account = accountID
+        let request = UUID(); phoneAvailabilityRequest = request
         do {
             let result: AvailabilitySnapshot = try await requestData("availability/read",
                 bodyData: JSONEncoder().encode(["tenant_id":active.id]), cloud:true)
-            guard signedIn, teamSessionID == session, accountID == account,
+            guard !Task.isCancelled, phoneAvailabilityRequest == request, availabilityMutation == nil,
+                  signedIn, teamSessionID == session, accountID == account,
                   activeCloudMembership?.id == active.id, result.tenantID == active.id else { return }
             applyPhoneAvailability(result)
         } catch { /* Preserve the last confirmed phone preference during network failures. */ }
@@ -698,18 +814,19 @@ final class CustomerAccount: ObservableObject {
     @discardableResult
     func saveAvailability(_ changes: [String:Any], expectedRevision: Int? = nil) async -> Bool {
         guard let context = teamContext, let current = availability, !availabilitySaving else { return false }
-        availabilitySaving = true
-        defer { availabilitySaving = false }
+        let mutation = beginAvailabilityMutation()
+        defer { finishAvailabilityMutation(mutation) }
         do {
             struct Result: Decodable { let revision: Int }
             let body = try JSONSerialization.data(withJSONObject:["tenant_id":context.tenantID,"expected_revision":expectedRevision ?? current.revision,"changes":changes])
             let _: Result = try await requestData("availability/user",bodyData:body,cloud:true)
-            guard teamContext == context else { return false }
-            await refreshAvailability()
-            await refreshTeam()
-            return true
+            guard !Task.isCancelled, teamContext == context, availabilityMutation == mutation else { return false }
+            await refreshAvailability(mutation: mutation)
+            guard !Task.isCancelled, teamContext == context, availabilityMutation == mutation else { return false }
+            await refreshTeam(refreshAvailability: false)
+            return !Task.isCancelled && teamContext == context && availabilityMutation == mutation
         } catch {
-            guard teamContext == context else { return false }
+            guard !Task.isCancelled, teamContext == context, availabilityMutation == mutation else { return false }
             availabilityMessage = error.localizedDescription
             return false
         }
@@ -718,17 +835,17 @@ final class CustomerAccount: ObservableObject {
     func pauseCallTeam(_ team: AvailabilitySnapshot.CallTeam, until: Date?) async {
         guard let context = teamContext, let current = availability, !availabilitySaving,
               let member = team.members.first(where: { $0.targetType == "user" && $0.targetID == current.selfUserID }) else { return }
-        availabilitySaving = true
-        defer { availabilitySaving = false }
+        let mutation = beginAvailabilityMutation()
+        defer { finishAvailabilityMutation(mutation) }
         do {
             struct Result: Decodable { let revision: Int }
             let body = try JSONSerialization.data(withJSONObject:["tenant_id":context.tenantID,"team_id":team.id,
                 "expected_revision":member.revision,"until":until.map { Int($0.timeIntervalSince1970) } as Any? ?? NSNull()])
             let _: Result = try await requestData("availability/pause",bodyData:body,cloud:true)
-            guard teamContext == context else { return }
-            await refreshAvailability()
+            guard !Task.isCancelled, teamContext == context, availabilityMutation == mutation else { return }
+            await refreshAvailability(mutation: mutation)
         } catch {
-            guard teamContext == context else { return }
+            guard !Task.isCancelled, teamContext == context, availabilityMutation == mutation else { return }
             availabilityMessage = error.localizedDescription
         }
     }
@@ -841,12 +958,12 @@ final class CustomerAccount: ObservableObject {
         defer { configuringTenantID = nil }
         struct Request: Encodable {
             let tenant_id, device_id: String
-            let capabilities = ["fonoo.cloud.v1", "srtp.required"]
+            let capabilities = ["fonado.cloud.v1", "srtp.required"]
             #if os(macOS)
-            let device_name = "fonu auf dem Mac"
+            let device_name = "Fonado auf dem Mac"
             let device_type = "desktop_app"
             #else
-            let device_name = "fonu auf dem iPhone"
+            let device_name = "Fonado auf dem iPhone"
             let device_type = "mobile_app"
             #endif
         }
@@ -897,7 +1014,9 @@ final class CustomerAccount: ObservableObject {
         passwordConfigured = false; passwordManaged = false; password = ""; passwordConfirmation = ""
         clearPresence()
         teamDirectory.setContext(nil)
-        teamContext = nil; availability = nil; availabilityMessage = ""; teamTenantChoice = nil; teamSessionID = UUID()
+        addressBook.setContext(nil, enabled: false, configured: false); addressBookEnabled = false
+        clearAvailability()
+        teamContext = nil; teamTenantChoice = nil; teamSessionID = UUID()
         deferredCloudSetup = false
         configuringTenantID = nil
         phone?.disableCloudPush()
@@ -912,7 +1031,7 @@ final class CustomerAccount: ObservableObject {
         #endif
         token = ""; signedIn = false; status = ""; company = ""; challenge = ""; code = ""
         accountID = ""; revision = 0
-        cloudMemberships = []; cloudMessage = ""
+        cloudMemberships = []; pictureThumbnail = nil; cloudMessage = ""
         pushStatus = "VoIP-Gerätetoken ausstehend · Hintergrundanrufe noch nicht aktiv"
     }
     func signOut() async {
@@ -941,8 +1060,8 @@ struct CustomerAccountView: View {
     var body: some View {
         Form {
             Section {
-                fonuWordmark(size: 38)
-                Text(customer.signedIn ? "Dein Konto" : "Willkommen bei fonu").font(.title2.bold())
+                FonadoWordmark()
+                Text(customer.signedIn ? "Dein Konto" : "Willkommen bei Fonado").font(.title2.bold())
                 Text(customer.signedIn ? customer.email : "Erstelle dein Konto oder melde dich mit deiner E-Mail-Adresse an.").foregroundStyle(.secondary)
             }
             if !customer.signedIn {
@@ -965,6 +1084,13 @@ struct CustomerAccountView: View {
                     }
                 }
             } else {
+                Section("Dein Profilbild") {
+                    HStack(spacing: 16) {
+                        ProfilePortrait(thumbnail: customer.pictureThumbnail, initials: String(customer.email.prefix(1)).uppercased(), size: 64)
+                        Link("Profilbild auswählen oder ändern", destination: URL(string: "https://konto.fonado.ai/kunden/?section=profile")!)
+                    }
+                    Text("Im Kundenbereich kannst du dein Foto hochladen, vergrößern und zuschneiden.").font(.footnote).foregroundStyle(.secondary)
+                }
                 Section("Cloud-Kundenbereich") {
                     ForEach(customer.cloudMemberships) { membership in
                         VStack(alignment: .leading, spacing: 8) {
@@ -1005,7 +1131,7 @@ struct CustomerAccountView: View {
                         Text("Lege deine Firma im Kundenbereich an oder nimm dort eine Einladung an. Verwende dieselbe E-Mail-Adresse wie hier.")
                     }
                     if !customer.cloudMessage.isEmpty { Text(customer.cloudMessage).font(.footnote) }
-                    Link("Firma und Benutzer verwalten", destination: URL(string: "https://dev.fonoo.app/kunden/")!)
+                    Link("Firma und Benutzer verwalten", destination: URL(string: "https://konto.fonado.ai/kunden/")!)
                     Button("Status aktualisieren") { Task { await customer.refresh() } }
                 }
                 Section("Erreichbarkeit") { Text(customer.pushStatus).font(.subheadline) }
@@ -1013,15 +1139,15 @@ struct CustomerAccountView: View {
                     NavigationLink("Diagnose und SIP-Protokolle") { DiagnosticsView(diagnostics: phone.diagnostics) }
                 }
                 Section {
-                    Button("Vom fonu-Konto abmelden") { Task { await customer.signOut() } }
+                    Button("Vom Fonado-Konto abmelden") { Task { await customer.signOut() } }
                 } footer: { Text("Die Telefonie wird auf diesem iPhone abgemeldet. Deine Firma und Benutzer bleiben bestehen.") }
             }
             if customer.busy { ProgressView("Bitte warten …") }
             if !customer.message.isEmpty { Section { Text(customer.message).font(.callout).accessibilityLabel(customer.message) } }
         }
         .disabled(customer.busy)
-        .scrollContentBackground(.hidden).background(fonuStyle.background)
-        .navigationTitle("fonu-Konto").navigationBarTitleDisplayMode(.inline)
+        .scrollContentBackground(.hidden).background(FonadoStyle.background)
+        .navigationTitle("Fonado-Konto").navigationBarTitleDisplayMode(.inline)
         .task { await customer.refresh() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await customer.refresh() } } }
         .onDisappear { customer.password = "" }
@@ -1034,13 +1160,14 @@ struct CustomerAccountView: View {
 /// Real URLSession requests against an in-process transport; no production API or Keychain access.
 private final class CustomerAuthFixtureProtocol: URLProtocol, @unchecked Sendable {
     static var respond: ((URLRequest) -> (Int, Data, TimeInterval, Error?))?
+    static var schedule: ((URLRequest, @escaping () -> Void) -> Void)?
     private let lock = NSLock()
     private var stopped = false
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         let result = Self.respond!(request)
-        DispatchQueue.global().asyncAfter(deadline: .now() + result.2) { [self] in
+        let deliver = { [self] in
             lock.lock(); defer { lock.unlock() }; guard !stopped else { return }
             if let error = result.3 { client?.urlProtocol(self, didFailWithError: error); return }
             client?.urlProtocol(self, didReceive: HTTPURLResponse(url: request.url!, statusCode: result.0,
@@ -1048,8 +1175,36 @@ private final class CustomerAuthFixtureProtocol: URLProtocol, @unchecked Sendabl
             client?.urlProtocol(self, didLoad: result.1)
             client?.urlProtocolDidFinishLoading(self)
         }
+        if let schedule = Self.schedule { schedule(request, deliver) }
+        else { DispatchQueue.global().asyncAfter(deadline: .now() + result.2, execute: deliver) }
     }
     override func stopLoading() { lock.lock(); stopped = true; lock.unlock() }
+}
+
+/// Hold fixture replies until the test releases them in an explicit order.
+private final class CustomerResponseGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var responses: [(() -> Void)?] = []
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+    func enqueue(_ request: URLRequest, _ deliver: @escaping () -> Void) {
+        lock.lock()
+        responses.append(deliver)
+        let ready = waiters.filter { $0.0 <= responses.count }
+        waiters.removeAll { $0.0 <= responses.count }
+        lock.unlock()
+        for (_, continuation) in ready { continuation.resume() }
+    }
+    func waitForCount(_ count: Int) async {
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if responses.count >= count { lock.unlock(); continuation.resume() }
+            else { waiters.append((count, continuation)); lock.unlock() }
+        }
+    }
+    func deliver(_ index: Int) {
+        lock.lock(); let response = responses[index]; responses[index] = nil; lock.unlock()
+        response?()
+    }
 }
 
 extension CustomerAccount {
@@ -1061,7 +1216,7 @@ extension CustomerAccount {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [CustomerAuthFixtureProtocol.self]
         let testSession = URLSession(configuration: config)
-        defer { testSession.invalidateAndCancel(); CustomerAuthFixtureProtocol.respond = nil }
+        defer { testSession.invalidateAndCancel(); CustomerAuthFixtureProtocol.respond = nil; CustomerAuthFixtureProtocol.schedule = nil }
         var stored: [Data] = []
         let account = CustomerAccount(authenticationTests: testSession) { stored.append($0) }
         let first = RememberedCustomerSession(token: String(repeating: "a", count: 43), refresh_token: String(repeating: "b", count: 64),
@@ -1134,7 +1289,90 @@ extension CustomerAccount {
         account.clearSession()
         _ = try? await pendingRequest.value
         try check(!account.signedIn && account.rememberedSession == nil, "late renewal cannot restore a logged-out account")
+        try await account.checkAvailabilityOrdering()
         print("Authentication checks passed; no production requests or credentials used.")
+    }
+
+    private func checkAvailabilityOrdering() async throws {
+        func check(_ condition: Bool, _ label: String) throws {
+            guard condition else { throw PhoneError.message("FAIL: " + label) }
+            print("PASS: " + label)
+        }
+        func payload(_ tenant: String = "company-a", revision: Int) -> Data {
+            let effective: [String: Any] = ["eligible": false, "reason_text": "Fixture", "presence": ["state": "do_not_disturb", "description": "Fixture"]]
+            return try! JSONSerialization.data(withJSONObject: [
+                "schema_version": 1, "tenant_id": tenant, "user_id": "fixture-user", "self_user_id": "fixture-user", "revision": revision,
+                "settings": ["work_mode": "all", "mode_devices": [:]], "effective": effective,
+                "call_teams": [["id": "team", "name": "Team", "extension": "100", "allow_self_pause": true,
+                    "members": [["target_type": "user", "target_id": "fixture-user", "revision": revision, "effective": effective]]]],
+                "personal_devices": [], "standalone_devices": [], "schedules": [], "company": ["routing_enabled": true]])
+        }
+        func select(_ tenant: String) { teamTenantChoice = tenant; updateTeamContext() }
+        func seed(_ tenant: String = "company-a", revision: Int = 4) throws {
+            availability = try JSONDecoder().decode(AvailabilitySnapshot.self, from: payload(tenant, revision: revision))
+        }
+        signedIn = true; accountID = "fixture-user"
+        cloudMemberships = ["company-a", "company-b"].map {
+            CloudMembership(id: $0, name: $0, role: "member", number: "100",
+                trial: .init(expires_at: nil, expired: false, telephony_status: "internal_ready"), addressbook: nil)
+        }
+        select("company-a")
+        var reads = 0
+        let newer = payload(revision: 4), older = payload(revision: 1)
+        CustomerAuthFixtureProtocol.respond = { _ in reads += 1; return (200, reads == 1 ? older : newer, 0, nil) }
+        let readGate = CustomerResponseGate(); CustomerAuthFixtureProtocol.schedule = readGate.enqueue
+        let oldRead = Task { await self.refreshAvailability() }
+        await readGate.waitForCount(1)
+        let newRead = Task { await self.refreshAvailability() }
+        await readGate.waitForCount(2)
+        readGate.deliver(1); await newRead.value
+        readGate.deliver(0); await oldRead.value
+        try check(availability?.revision == 4 && availabilityMessage.isEmpty, "late availability read cannot overwrite a newer snapshot")
+
+        reads = 0
+        CustomerAuthFixtureProtocol.respond = { request in
+            if request.url!.path.hasSuffix("availability/read") { reads += 1; return (200, reads == 1 ? older : newer, 0, nil) }
+            if request.url!.path.hasSuffix("team/read") {
+                return (200, Data(#"{"schema_version":1,"tenant_id":"company-a","tenant_name":"Fixture","self_user_id":"fixture-user","revision":1,"members":[]}"#.utf8), 0, nil)
+            }
+            return (200, Data(#"{"revision":4}"#.utf8), 0, nil)
+        }
+        let saveGate = CustomerResponseGate(); CustomerAuthFixtureProtocol.schedule = saveGate.enqueue
+        let beforeSave = Task { await self.refreshAvailability() }
+        await saveGate.waitForCount(1)
+        let save = Task { await self.saveAvailability(["work_mode": "all"]) }
+        await saveGate.waitForCount(2)
+        await refreshAvailability() // Polling is suppressed until the save's own refresh.
+        saveGate.deliver(1); await saveGate.waitForCount(3)
+        saveGate.deliver(2); await saveGate.waitForCount(4)
+        saveGate.deliver(3); let saved = await save.value
+        saveGate.deliver(0); await beforeSave.value
+        try check(saved && reads == 2 && availability?.revision == 4 && !availabilitySaving,
+                  "save invalidates earlier reads, blocks racing polls and refreshes availability once")
+
+        CustomerAuthFixtureProtocol.respond = { _ in (200, older, 0, nil) }
+        let contextGate = CustomerResponseGate(); CustomerAuthFixtureProtocol.schedule = contextGate.enqueue
+        let beforeSwitch = Task { await self.refreshAvailability() }
+        await contextGate.waitForCount(1)
+        select("company-b"); select("company-a")
+        contextGate.deliver(0); await beforeSwitch.value
+        try check(availability == nil && availabilityMessage.isEmpty, "company round trip invalidates an earlier availability read")
+
+        try seed()
+        CustomerAuthFixtureProtocol.respond = { _ in (500, Data(#"{"error":"fixture failure"}"#.utf8), 0, nil) }
+        let mutationGate = CustomerResponseGate(); CustomerAuthFixtureProtocol.schedule = mutationGate.enqueue
+        let team = availability!.callTeams[0]
+        let oldPause = Task { await self.pauseCallTeam(team, until: nil) }
+        await mutationGate.waitForCount(1)
+        select("company-b"); try seed("company-b")
+        let newSave = Task { await self.saveAvailability(["work_mode": "all"]) }
+        await mutationGate.waitForCount(2)
+        mutationGate.deliver(0); await oldPause.value
+        try check(availabilitySaving && availabilityMessage.isEmpty,
+                  "late old-company pause cannot clear a newer save flag or show its error")
+        mutationGate.deliver(1); _ = await newSave.value
+        try check(!availabilitySaving && availabilityMessage == "fixture failure", "current availability save retains its own completion status")
+        CustomerAuthFixtureProtocol.schedule = nil
     }
 }
 #endif
@@ -1271,8 +1509,9 @@ private final class CloudCallHistorySync {
          read: @escaping (String, Int64?) async throws -> CloudHistoryPayload,
          delete: @escaping (String, Set<UUID>) async throws -> CloudHistoryPayload) {
         self.manager = manager; self.read = read; self.delete = delete
+        manager.setCloudHistoryContext(false)
         self.cacheDirectory = cacheDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Fonoo", isDirectory: true).appendingPathComponent("cloud-history-v1", isDirectory: true)
+            .appendingPathComponent("Fonado", isDirectory: true).appendingPathComponent("cloud-history-v1", isDirectory: true)
         manager.onHistoryRefresh = { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -1297,7 +1536,7 @@ private final class CloudCallHistorySync {
         if let cached = try? JSONDecoder().decode(CloudHistoryPayload.self, from: Data(contentsOf: cacheURL(next))),
            !cached.not_modified, let rows = try? cached.validated(tenant: next.tenant, user: next.user) {
             snapshot = cached
-            manager?.applyCloudHistory(rows, status: "fonu-Konto · gespeicherter Stand, wird aktualisiert")
+            manager?.applyCloudHistory(rows, status: "Fonado-Konto · gespeicherter Stand, wird aktualisiert")
         }
         let generation = self.generation
         polling = Task { @MainActor [weak self] in
@@ -1324,11 +1563,11 @@ private final class CloudCallHistorySync {
             #endif
             snapshot = response
             manager?.applyCloudHistory(rows, status: response.collector_available
-                ? "Mit deinem fonu-Konto synchronisiert" : "fonu-Konto · Telefonieserver-Abgleich ausstehend")
+                ? "Mit deinem Fonado-Konto synchronisiert" : "Fonado-Konto · Telefonieserver-Abgleich ausstehend")
         } else {
             guard snapshot?.revision == response.revision else { throw CocoaError(.fileReadCorruptFile) }
             manager?.setCloudHistoryStatus(response.collector_available
-                ? "Mit deinem fonu-Konto synchronisiert" : "fonu-Konto · Telefonieserver-Abgleich ausstehend")
+                ? "Mit deinem Fonado-Konto synchronisiert" : "Fonado-Konto · Telefonieserver-Abgleich ausstehend")
         }
     }
     private func refresh() async {
@@ -1342,7 +1581,7 @@ private final class CloudCallHistorySync {
         } catch {
             if self.generation == generation {
                 manager?.setCloudHistoryStatus(snapshot == nil ? "Gemeinsame Anrufliste momentan nicht erreichbar"
-                    : "fonu-Konto · gespeicherter Stand, Verbindung wird wiederholt")
+                    : "Fonado-Konto · gespeicherter Stand, Verbindung wird wiederholt")
             }
         }
     }

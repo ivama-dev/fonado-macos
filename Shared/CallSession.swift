@@ -86,7 +86,7 @@ struct CallHistoryStore {
     let url: URL
     static var local: CallHistoryStore {
         let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return CallHistoryStore(url: directory.appendingPathComponent("Fonoo", isDirectory: true).appendingPathComponent("call-history.json"))
+        return CallHistoryStore(url: directory.appendingPathComponent("Fonado", isDirectory: true).appendingPathComponent("call-history.json"))
     }
     private struct Archive: Codable {
         let version: Int

@@ -3,7 +3,7 @@ import AppKit
 @main
 struct MenuBarPlacementChecks {
     static func main() {
-        let suite = "app.fonoo.checks.menu-bar." + UUID().uuidString
+        let suite = "app.fonado.checks.menu-bar." + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         defaults.set("fixture", forKey: "unrelated-setting")
@@ -16,7 +16,7 @@ struct MenuBarPlacementChecks {
         precondition(defaults.double(forKey: MacMenuBarPlacement.positionKey) == 0)
         precondition(defaults.bool(forKey: MacMenuBarPlacement.visibilityKey))
         precondition(defaults.string(forKey: "unrelated-setting") == "fixture")
-        print("PASS: new installation seeded right; saved order preserved; explicit recovery scoped to fonu")
+        print("PASS: new installation seeded right; saved order preserved; explicit recovery scoped to Fonado")
 
         let screen = NSRect(x: 0, y: 0, width: 1512, height: 982)
         let left = NSRect(x: 0, y: 950, width: 650, height: 32)

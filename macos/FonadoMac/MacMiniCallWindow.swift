@@ -24,11 +24,14 @@ final class MacMiniCallWindow: NSObject, NSWindowDelegate {
         self.showMainWindow = showMainWindow
         super.init()
         mainWindow = NSApp.windows.first { $0.identifier?.rawValue == "main" }
-        activity.$snapshot.sink { [weak self] snapshot in
-            guard let self else { return }
-            self.snapshot = snapshot
-            self.updateVisibility()
-        }.store(in: &observations)
+        // The hosted call view observes every audio sample itself. Native window
+        // visibility changes only when the call identity/presence or a window does.
+        activity.$snapshot.removeDuplicates { $0.callID == $1.callID && $0.hasCall == $1.hasCall }
+            .sink { [weak self] snapshot in
+                guard let self else { return }
+                self.snapshot = snapshot
+                self.updateVisibility()
+            }.store(in: &observations)
         for name in [NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
                      NSWindow.didBecomeMainNotification, NSWindow.didBecomeKeyNotification] {
             NotificationCenter.default.publisher(for: name).sink { [weak self] notification in
@@ -49,6 +52,9 @@ final class MacMiniCallWindow: NSObject, NSWindowDelegate {
             }.store(in: &observations)
         NotificationCenter.default.publisher(for: NSApplication.didChangeScreenParametersNotification)
             .sink { [weak self] _ in self?.keepOnScreen() }.store(in: &observations)
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.resizeForDisplayScale() }.store(in: &observations)
     }
 
     private var mainIsCompact: Bool { mainIsClosed || mainWindow == nil || mainWindow?.isMiniaturized == true }
@@ -98,14 +104,27 @@ final class MacMiniCallWindow: NSObject, NSWindowDelegate {
         panel.isReleasedWhenClosed = false
         panel.isMovableByWindowBackground = true
         panel.delegate = self
-        panel.contentView = NSHostingView(rootView: MacMiniCallView(showMainWindow: showMainWindow)
-            .environmentObject(phone).environmentObject(activity).tint(MacStyle.accent))
+        let controls = MacMiniCallView(showMainWindow: showMainWindow)
+        panel.contentView = NSHostingView(rootView:
+            MacScaledViewport(minimum: CGSize(width: 320, height: 94)) { controls }
+                .environmentObject(phone).environmentObject(activity).tint(MacStyle.accent))
         self.panel = panel
+        resizeForDisplayScale()
         let screen = mainWindow?.screen ?? NSScreen.main
         if let visible = screen?.visibleFrame {
             panel.setFrameOrigin(NSPoint(x: visible.maxX - panel.frame.width - 20,
                 y: visible.maxY - panel.frame.height - 20))
         }
+    }
+    private func resizeForDisplayScale() {
+        guard let panel else { return }
+        let scale = MacDisplayScale.factor(UserDefaults.standard.integer(forKey: MacDisplayScale.preferenceKey))
+        let size = CGSize(width: 320 * scale, height: 94 * scale)
+        guard panel.contentView?.frame.size != size else { return }
+        let topRight = NSPoint(x: panel.frame.maxX, y: panel.frame.maxY)
+        panel.setContentSize(size)
+        panel.setFrameOrigin(NSPoint(x: topRight.x - panel.frame.width, y: topRight.y - panel.frame.height))
+        keepOnScreen()
     }
     private func keepOnScreen() {
         guard let panel else { return }

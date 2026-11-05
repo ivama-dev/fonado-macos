@@ -10,9 +10,13 @@ struct TeamMember: Decodable, Identifiable, Equatable, Sendable {
     let personalDeviceCount: Int
     let personalDevices: [PersonalDevice]
     var availability: PersonalAvailability? = nil
+    var picture: String? = nil
+    var position: String? = nil
+    var mobileNumber: String? = nil
 
     enum CodingKeys: String, CodingKey {
-        case id, name, email, availability
+        case id, name, email, availability, picture, position
+        case mobileNumber = "mobile_number"
         case number = "extension"
         case personalDeviceCount = "personal_device_count"
         case personalDevices = "personal_devices"
@@ -31,7 +35,7 @@ struct TeamMember: Decodable, Identifiable, Equatable, Sendable {
 
     func matches(_ query: String) -> Bool {
         let words = query.split(whereSeparator: { $0.isWhitespace })
-        let fields = [name, email, number ?? ""]
+        let fields = [name, email, number ?? "", position ?? "", mobileNumber ?? ""]
         return words.allSatisfy { word in
             fields.contains { $0.range(of: String(word), options: [.caseInsensitive, .diacriticInsensitive], locale: .current) != nil }
         }
@@ -41,7 +45,7 @@ struct TeamMember: Decodable, Identifiable, Equatable, Sendable {
     func callContact(tenantID: String) -> Contact? {
         guard let number, (2...6).contains(number.count), number.first != "0",
               number.utf8.allSatisfy({ (48...57).contains($0) }) else { return nil }
-        return Contact(id: "team:\(tenantID):\(id)", name: name, role: "Team", number: number)
+        return Contact(id: "team:\(tenantID):\(id)", name: name, role: position.flatMap { $0.isEmpty ? nil : $0 } ?? "Team", number: number)
     }
 }
 
@@ -99,8 +103,10 @@ struct TeamPresenceSnapshot: Decodable, Equatable, Sendable {
     let collectorAvailable: Bool
     let observedAt, expiresAt: Double?
     let members: [CallPresence]
+    var teamRevision: Int? = nil
     enum CodingKeys: String, CodingKey {
         case members
+        case teamRevision = "team_revision"
         case schemaVersion = "schema_version", tenantID = "tenant_id", selfUserID = "self_user_id"
         case collectorAvailable = "collector_available", observedAt = "observed_at", expiresAt = "expires_at"
     }

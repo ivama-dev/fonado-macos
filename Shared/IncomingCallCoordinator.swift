@@ -12,7 +12,7 @@ struct IncomingPush {
     struct CloudWake { let token, tenantID, deviceID, endpointID: String }
 
     init?(_ payload: [AnyHashable: Any], now: Date) {
-        guard let data = payload["fonoo"] as? [String: Any],
+        guard let data = payload["fonado"] as? [String: Any],
               let version = data["version"] as? NSNumber,
               CFGetTypeID(version) != CFBooleanGetTypeID(), [1.0, 2.0].contains(version.doubleValue),
               data["type"] as? String == "incoming_call",

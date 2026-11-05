@@ -24,6 +24,7 @@ final class MacCallStatusItem: NSObject, NSMenuDelegate {
     private let showProfiles: () -> Void
     private let miniCallWindow: MacMiniCallWindow
     private var observations: Set<AnyCancellable> = []
+    private var renderedPresentation: MacMenuBarPresentation?
 
     init(phone: PhoneStore, customer: CustomerAccount, activity: MacCallActivity,
          miniCallWindow: MacMiniCallWindow, showWindow: @escaping () -> Void,
@@ -50,11 +51,15 @@ final class MacCallStatusItem: NSObject, NSMenuDelegate {
         reportPlacementAfterLayout()
     }
     private func configureButton() {
+        // A replacement status item has a new button and must receive all values.
+        renderedPresentation = nil
         item.autosaveName = MacMenuBarPlacement.autosaveName
         item.button?.target = self
         item.button?.action = #selector(clicked)
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
         item.button?.imagePosition = .imageOnly
+        item.button?.title = ""
+        item.button?.setAccessibilityHelp("Schnellzugriff öffnen. Rechtsklick für das Menü.")
     }
     /// Explicit recovery, without restarting the app or its phone connection.
     func restoreVisiblePosition() {
@@ -87,7 +92,7 @@ final class MacCallStatusItem: NSObject, NSMenuDelegate {
         // A transient popover may be detached when its last call ends. A new
         // hosting controller reads current values instead of reusing a hidden
         // view tree, and tracks size changes between call controls and dialing.
-        let controller = NSHostingController(rootView: MacMenuBarView(
+        let menu = MacMenuBarView(
             phone: phone, customer: customer, activity: activity,
             open: { [weak self] destination in
                 self?.popover.performClose(nil)
@@ -97,7 +102,8 @@ final class MacCallStatusItem: NSObject, NSMenuDelegate {
                 self?.showProfiles()
             }, setDND: { [weak self] in self?.setDoNotDisturb($0) },
             close: { [weak self] in self?.popover.performClose(nil) },
-            quit: { [weak self] in self?.quit() }))
+            quit: { [weak self] in self?.quit() })
+        let controller = NSHostingController(rootView: MacScaledPresentation { menu })
         controller.sizingOptions = [.preferredContentSize]
         popover.contentViewController = controller
     }
@@ -129,24 +135,22 @@ final class MacCallStatusItem: NSObject, NSMenuDelegate {
     }
     private func update(_ snapshot: MacCallActivity.Snapshot) {
         guard let button = item.button else { return }
+        let presentation = MacMenuBarPresentation(snapshot: snapshot,
+            registrationLabel: phone.registration.label, doNotDisturb: phone.doNotDisturb)
+        guard presentation != renderedPresentation else { return }
         // A growing duration/waveform pushed the status item towards the notch.
         // Keep its footprint constant; full call information remains in the popover.
-        button.title = ""
-        button.image = snapshot.hasCall ? Self.image(snapshot) : Self.brandImage
-        button.toolTip = snapshot.hasCall ? "fonu · \(snapshot.label) · \(snapshot.contact)\(snapshot.elapsed.isEmpty ? "" : " · " + snapshot.elapsed)"
-            : "fonu · \(phone.registration.label)\(phone.doNotDisturb ? " · Nicht stören" : "")"
-        button.setAccessibilityLabel(snapshot.hasCall ? "fonu, \(snapshot.label), \(snapshot.elapsed)"
-            : "fonu, \(phone.registration.label)\(phone.doNotDisturb ? ", Nicht stören" : "")")
-        button.setAccessibilityHelp("Schnellzugriff öffnen. Rechtsklick für das Menü.")
+        if presentation.state != renderedPresentation?.state {
+            button.image = snapshot.hasCall ? Self.image(snapshot) : Self.brandImage
+        }
+        button.toolTip = presentation.toolTip
+        button.setAccessibilityLabel(presentation.accessibilityLabel)
+        renderedPresentation = presentation
     }
     private static let brandImage: NSImage = {
-        let image = NSImage(size: NSSize(width: 22, height: 18), flipped: false) { _ in
-            ("f" as NSString).draw(at: NSPoint(x: 3, y: -3), withAttributes: [
-                .font: NSFont.systemFont(ofSize: 21, weight: .heavy), .foregroundColor: NSColor.black])
-            NSColor.black.setFill()
-            NSBezierPath(ovalIn: NSRect(x: 15, y: 2, width: 4, height: 4)).fill()
-            return true
-        }
+        let image = NSImage(named: "FonadoMenuBar")
+            ?? NSImage(systemSymbolName: "phone", accessibilityDescription: "Fonado")!
+        image.size = NSSize(width: 18, height: 18)
         image.isTemplate = true
         return image
     }()
@@ -162,7 +166,7 @@ final class MacCallStatusItem: NSObject, NSMenuDelegate {
         add(snapshot.hasCall ? snapshot.label + (snapshot.elapsed.isEmpty ? "" : " · " + snapshot.elapsed) : phone.registration.label,
             to: menu, action: nil)
         if snapshot.hasCall { add(snapshot.contact, to: menu, action: nil) }
-        add(snapshot.hasCall ? "Zum Gespräch" : "fonu öffnen", to: menu, action: #selector(openWindow))
+        add(snapshot.hasCall ? "Zum Gespräch" : "Fonado öffnen", to: menu, action: #selector(openWindow))
         if miniCallWindow.canShow {
             add("Kleines Gesprächsfenster anzeigen", to: menu, action: #selector(openMiniCall))
         }
@@ -180,7 +184,7 @@ final class MacCallStatusItem: NSObject, NSMenuDelegate {
         let dnd = add("Nicht stören", to: menu, action: #selector(toggleDND), enabled: !customer.availabilitySaving)
         dnd.state = phone.doNotDisturb ? .on : .off
         add("Menüleistensymbol rechts einblenden", to: menu, action: #selector(restorePosition))
-        add("fonu beenden", to: menu, action: #selector(quit))
+        add("Fonado beenden", to: menu, action: #selector(quit))
     }
     @discardableResult
     private func add(_ title: String, to menu: NSMenu, action: Selector?, enabled: Bool = true) -> NSMenuItem {
@@ -240,10 +244,7 @@ private struct MacMenuBarView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                HStack(alignment: .lastTextBaseline, spacing: 2) {
-                    Text("fonu").font(.system(size: 26, weight: .heavy)).tracking(-1)
-                    Circle().fill(MacStyle.accent).frame(width: 6, height: 6)
-                }
+                FonadoLogoView()
                 Spacer()
                 Button(action: close) { Image(systemName: "xmark") }
                     .buttonStyle(.plain).foregroundStyle(.secondary)
@@ -295,7 +296,7 @@ private struct MacMenuBarView: View {
                     TextField("Rufnummer oder Nebenstelle", text: $number).textFieldStyle(.roundedBorder)
                         .onSubmit(dial).accessibilityLabel("Rufnummer für Direktwahl")
                     Button(action: dial) { Image(systemName: "phone.fill").frame(width: 24) }
-                        .buttonStyle(.borderedProminent).disabled(!canDial)
+                        .buttonStyle(MacPrimaryButtonStyle()).disabled(!canDial)
                         .accessibilityLabel("Rufnummer anrufen")
                 }.controlSize(.large)
             }
@@ -315,7 +316,7 @@ private struct MacMenuBarView: View {
             }
             Divider()
             HStack {
-                Button("fonu öffnen") { open(phone.call == nil ? .dial : .conversation) }
+                Button("Fonado öffnen") { open(phone.call == nil ? .dial : .conversation) }
                     .buttonStyle(.bordered)
                 Spacer()
                 Button("Beenden", action: quit).buttonStyle(.plain).foregroundStyle(.secondary)
@@ -336,7 +337,7 @@ private struct MacMenuBarView: View {
                 Image(systemName: symbol).font(.system(size: 17))
                 Text(title).font(.caption)
             }.frame(maxWidth: .infinity).padding(.vertical, 10)
-                .background(MacStyle.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .background(MacStyle.action.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
                 .contentShape(RoundedRectangle(cornerRadius: 10))
         }.buttonStyle(.plain).foregroundStyle(MacStyle.accent)
     }
@@ -360,12 +361,14 @@ private struct MacMenuBarView: View {
                 } else {
                     Button { phone.toggleMute() } label: {
                         Image(systemName: call?.isMuted == true ? "mic.slash.fill" : "mic.fill")
-                    }.tint(call?.isMuted == true ? MacStyle.accent : .secondary)
+                    }.buttonStyle(MacPrimaryButtonStyle(
+                        background: call?.isMuted == true ? MacStyle.action : Color.secondary.opacity(0.18),
+                        foreground: call?.isMuted == true ? MacStyle.actionText : MacStyle.accent))
                         .accessibilityLabel(call?.isMuted == true ? "Mikrofon einschalten" : "Mikrofon stummschalten")
                         .disabled(call?.phase != .active)
                     Button { phone.toggleHold() } label: {
                         Image(systemName: call?.isHeld == true ? "play.fill" : "pause.fill")
-                    }.accessibilityLabel(call?.isHeld == true ? "Gespräch fortsetzen" : "Gespräch halten")
+                    }.buttonStyle(MacPrimaryButtonStyle()).accessibilityLabel(call?.isHeld == true ? "Gespräch fortsetzen" : "Gespräch halten")
                         .disabled(call?.phase != .active || call?.holdPending == true || call?.isRemoteHeld == true
                             || phone.manager.consultation != nil || phone.manager.consultationPending || phone.manager.transferPending)
                 }
@@ -373,6 +376,6 @@ private struct MacMenuBarView: View {
                 Button(call?.phase == .incoming ? "Ablehnen" : "Auflegen") { phone.end() }
                     .tint(.red).disabled(call == nil || call?.phase == .ending)
             }.buttonStyle(.borderedProminent).controlSize(.large)
-        }.padding(12).background(MacStyle.accent.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+        }.padding(12).background(MacStyle.action.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
     }
 }

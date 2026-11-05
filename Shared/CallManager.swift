@@ -158,7 +158,7 @@ final class CallManager: ObservableObject {
             let granted = await audio.requestPermission()
             guard !Task.isCancelled, operation == id else { completion(false); return }
             operation = nil; preparingCall = false
-            guard granted else { show("Mikrofonzugriff fehlt. Bitte in den iPhone-Einstellungen für fonu erlauben."); completion(false); return }
+            guard granted else { show("Mikrofonzugriff fehlt. Bitte in den iPhone-Einstellungen für Fonado erlauben."); completion(false); return }
             guard call == nil, registration == .registered else { completion(false); return }
             do {
                 if native {
@@ -644,9 +644,9 @@ final class CallManager: ObservableObject {
 
 extension CallManager {
     func setCloudHistoryContext(_ enabled: Bool) {
-        if enabled || cloudHistoryManaged { recents = [] }
+        recents = []
         cloudHistoryManaged = enabled
-        historyStatus = enabled ? "fonu-Konto · Anrufliste wird geladen" : ""
+        historyStatus = enabled ? "Fonado-Konto · Anrufliste wird geladen" : ""
     }
     func applyCloudHistory(_ entries: [RecentCall], status: String) {
         guard cloudHistoryManaged else { return }

@@ -42,7 +42,7 @@ final class IncomingFixture {
         coordinator.endSIP = { [unowned self] in self.terminated.append($0) }
     }
     var payload: [AnyHashable: Any] {
-        ["fonoo": ["version": 1, "type": "incoming_call", "event_id": "event-1",
+        ["fonado": ["version": 1, "type": "incoming_call", "event_id": "event-1",
                    "call_id": "call-1", "call_uuid": uuid.uuidString, "expires_at": 1060] as [String: Any]]
     }
     func cloudPayload(number: Any? = nil, expires: Int = 1060) -> [AnyHashable: Any] {
@@ -51,7 +51,7 @@ final class IncomingFixture {
             "expires_at":expires, "wake_token":String(repeating:"t",count:43),
             "tenant_id":"tenant", "device_id":"iphone", "endpoint_id":"d"+String(repeating:"a",count:32)]
         if let number { data["caller_number"] = number }
-        return ["fonoo":data]
+        return ["fonado":data]
     }
     func push() { coordinator.receivePush(payload) { [unowned self] in self.completedPush += 1 } }
     @discardableResult
@@ -112,7 +112,7 @@ struct IncomingCallChecks {
         do {
             let f = IncomingFixture()
             let cid = String(repeating: "c", count: 32)
-            var data = f.payload["fonoo"] as! [String: Any]
+            var data = f.payload["fonado"] as! [String: Any]
             data["version"] = 2; data["call_id"] = cid
             data["wake_token"] = String(repeating: "t", count: 43)
             data["tenant_id"] = "tenant"; data["device_id"] = "iphone"
@@ -121,9 +121,9 @@ struct IncomingCallChecks {
             f.coordinator.authorizePush = { $0.cloud?.tenantID == "tenant" }
             f.coordinator.pushStarted = { _ in wakes += 1 }
             f.coordinator.callFinished = { _ in finishes += 1 }
-            f.coordinator.receivePush(["fonoo": data]) {}
+            f.coordinator.receivePush(["fonado": data]) {}
             precondition(wakes == 1 && f.coordinator.busy)
-            f.coordinator.receivePush(["fonoo": data]) {}
+            f.coordinator.receivePush(["fonado": data]) {}
             precondition(wakes == 1)
             f.coordinator.remoteEnded(callID: "another")
             precondition(f.coordinator.busy)
@@ -132,7 +132,7 @@ struct IncomingCallChecks {
             f.sip(.incoming, callID: cid)
             precondition(f.terminated == [f.sipID])
             data["wake_token"] = "bad"
-            precondition(IncomingPush(["fonoo": data], now: f.clock) == nil)
+            precondition(IncomingPush(["fonado": data], now: f.clock) == nil)
             let other = IncomingFixture()
             other.coordinator.authorizePush = { _ in false }
             other.push()
@@ -229,7 +229,7 @@ struct IncomingCallChecks {
             f.clock += 61; f.push()
             precondition(f.completedPush == 1 && f.restored == 0 && f.reporter.ends.count == 1)
             var completions = 0
-            for payload: [AnyHashable: Any] in [[:], ["fonoo": "wrong"], ["fonoo": ["version": true]]] {
+            for payload: [AnyHashable: Any] in [[:], ["fonado": "wrong"], ["fonado": ["version": true]]] {
                 f.coordinator.receivePush(payload) { completions += 1 }
             }
             precondition(completions == 3 && f.reporter.reports.count == 4 && !f.coordinator.busy)
@@ -268,14 +268,14 @@ struct IncomingCallChecks {
         }
         do {
             let f = IncomingFixture()
-            var base = f.payload["fonoo"] as! [String: Any]
+            var base = f.payload["fonado"] as! [String: Any]
             for (key, value): (String, Any) in [("version", true), ("version", 2), ("call_id", "x\nInjected"),
                                                ("call_uuid", "wrong"), ("expires_at", true), ("expires_at", 9000)] {
                 var bad = base; bad[key] = value
-                precondition(IncomingPush(["fonoo": bad], now: f.clock) == nil)
+                precondition(IncomingPush(["fonado": bad], now: f.clock) == nil)
             }
             base["expires_at"] = 999
-            precondition(IncomingPush(["fonoo": base], now: f.clock) != nil, "Expired payload still has a native identity to report/end")
+            precondition(IncomingPush(["fonado": base], now: f.clock) != nil, "Expired payload still has a native identity to report/end")
         }
         print("PASS: push/SIP ordering, early answer, exact Call-ID matching, duplicate delivery, deadlines, late INVITE, report/answer races, reset, DND/sign-out gate and malformed payloads")
     }
