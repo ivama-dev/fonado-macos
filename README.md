@@ -1,4 +1,4 @@
-# fonu für macOS
+# Fonado für macOS
 
 Native SwiftUI/AppKit-App ab macOS 14, Bundle-ID `app.fonoo.macos`, Scheme **fonuMac**. Kein Catalyst. Dieses Repository enthält die Mac-App samt benötigten gemeinsamen Apple-Dateien, Assets, isolierten Prüfungen und Hersteller-Lizenzen. Ein zweiter iOS-Checkout ist zum Bauen nicht erforderlich.
 
@@ -18,6 +18,8 @@ Die gebaute App liegt standardmäßig unter `/private/tmp/fonuMacNativeBuild/Bui
 
 ## Menüleiste und Hintergrundbetrieb
 
+Die folgenden Build-Notizen dokumentieren die damaligen Menübezeichnungen mit dem früheren Namen `fonu`; der aktuelle Produktname ist **Fonado**.
+
 Build **28** erweitert das dauerhafte **f.**-Symbol oben rechts zu einem interaktiven Schnellzugriff. Ein Klick zeigt den aktuellen Verbindungsstatus, Firma/Nebenstelle, Anrufprofil, Direktwahl sowie Verknüpfungen zu Favoriten, Team und Anrufliste. Während eines Gesprächs stehen Annehmen/Ablehnen, Mikrofon, Halten/Fortsetzen und Auflegen zur Verfügung. Rechtsklick öffnet das kompakte native Menü. Beide Ansichten verwenden denselben bestehenden Kontostand und Anrufmanager.
 
 Minimieren oder Schließen des Hauptfensters beendet die Telefonie nicht. **fonu öffnen** bzw. die Verknüpfungen stellen das Fenster wieder her. Der Schnellzugriff ist auch über **fonu → Schnellzugriff öffnen** bzw. **⌥⌘M** erreichbar. **Beenden** und Cmd-Q beenden die App; bei laufendem Gespräch bleibt die bisherige Rückfrage erhalten. Eingehende Anrufe benötigen einen wachen Mac. Der automatische Start beim Mac-Login wird dadurch nicht geändert.
@@ -32,7 +34,7 @@ Prüfstand 10. Oktober 2026: signierte Debug-/Release-Builds und die Mac-Audio-/
 
 Favoriten werden in eigenen, pro Benutzer gespeicherten Gruppen angezeigt. **Favoriten → Gruppen verwalten** ermöglicht Anlegen, Umbenennen und Verschieben per Drag & Drop oder Pfeilen. Das Kontextmenü eines Favoriten verschiebt ihn in eine andere Gruppe; innerhalb einer Gruppe lässt sich die Reihenfolge verschieben. Beim Löschen einer Gruppe bleiben ihre Favoriten unter **Allgemein** erhalten. Bestehende Favoriten werden dem bestätigten bisherigen Konto zugeordnet; die alte Datei bleibt erhalten.
 
-Favoriten und Gruppen werden nach der Anmeldung automatisch mit dem persönlichen fonu-Konto synchronisiert. Gruppen anlegen, umbenennen, löschen und sortieren sowie Kontakte zuordnen oder sortieren gilt auf jedem Gerät. Die Gruppe **Allgemein** bleibt erhalten; beim Löschen einer eigenen Gruppe werden deren Favoriten dorthin verschoben. Nur ausgewählte Favoriten werden übertragen, nicht das gesamte Adressbuch. Es gibt keinen Schalter zum Starten oder Beenden der Synchronisierung.
+Favoriten und Gruppen werden nach der Anmeldung automatisch mit dem persönlichen Fonado-Konto synchronisiert. Gruppen anlegen, umbenennen, löschen und sortieren sowie Kontakte zuordnen oder sortieren gilt auf jedem Gerät. Die Gruppe **Allgemein** bleibt erhalten; beim Löschen einer eigenen Gruppe werden deren Favoriten dorthin verschoben. Nur ausgewählte Favoriten werden übertragen, nicht das gesamte Adressbuch. Es gibt keinen Schalter zum Starten oder Beenden der Synchronisierung.
 
 Änderungen funktionieren offline und werden bei der nächsten Verbindung abgeglichen. Gleichzeitige Änderungen werden anhand des letzten bestätigten Kontostands zusammengeführt; bei konkurrierenden Änderungen desselben Feldes gewinnt die noch ausstehende lokale Änderung beim erneuten Speichern. Löschungen haben Vorrang vor veralteten Kopien. Der automatische Worker wiederholt Revisionskonflikte höchstens dreimal pro Durchlauf und prüft im Vordergrund alle fünf Sekunden. Abmelden leert die Anzeige und schützt vor verspäteten Antworten einer alten Sitzung. Andere Benutzer und Firmenadministratoren haben keinen Zugriff auf die persönlichen Favoriten.
 
@@ -60,8 +62,8 @@ Die [Mac-Oberfläche als Referenz für Windows](macos/WINDOWS-UI-REFERENZ.md) bl
 
 ## Lizenz
 
-Die fonu-macOS-App steht wie der Windows-Client unter **GNU Affero General Public License v3 oder später** (`AGPL-3.0-or-later`). Siehe [LICENSE](LICENSE) und [NOTICE.md](NOTICE.md). Drittanbieter behalten ihre eigenen Lizenzen; [Hinweise und unveränderte Lizenzdateien](THIRD-PARTY-NOTICES.md). GitHub-Prüfungen verwenden synthetische Daten und benötigen keine Produktionszugänge.
+Die Fonado-macOS-App steht wie der Windows-Client unter **GNU Affero General Public License v3 oder später** (`AGPL-3.0-or-later`). Siehe [LICENSE](LICENSE) und [NOTICE.md](NOTICE.md). Drittanbieter behalten ihre eigenen Lizenzen; [Hinweise und unveränderte Lizenzdateien](THIRD-PARTY-NOTICES.md). GitHub-Prüfungen verwenden synthetische Daten und benötigen keine Produktionszugänge.
 
 ## Markenname und technische Kompatibilität
 
-Seit 12. Oktober 2026 lautet der Marken- und Repository-Name **fonu**. Die Xcode-Projekte, Targets, Schemes, Quellordner und Swift-Namen verwenden ebenfalls fonu. Sichtbare Texte und GitHub-Verweise verwenden den neuen Namen. Bestehende technische Kennungen mit `fonu`/`fonu` (unter anderem Bundle-/Store-IDs, Push-Felder und lokale Datenablagen) bleiben zur Kompatibilität erhalten. Auch bisherige Server-, API-, E-Mail- und Deep-Link-Adressen gelten weiter, bis sie separat migriert werden. Historische Betriebsnachweise dokumentieren den damaligen Stand. Diese Änderung veröffentlicht keine neue App-Version und führt kein Server-Deployment aus.
+Der Markenname lautet **Fonado**, das Repository heißt `fonado-macos`. Sichtbare Produkttexte und aktuelle GitHub-Verweise verwenden Fonado. Die vorhandenen technischen Kennungen wie `fonuMac`, Xcode-Projekte, Targets, Schemes, Quellordner, Bundle-/Store-IDs, Push-Felder und lokale Datenablagen bleiben zur Kompatibilität erhalten. Auch bisherige Server-, API-, E-Mail- und Deep-Link-Adressen gelten weiter, bis sie separat migriert werden. Historische Build- und Betriebsnachweise einschließlich damaliger Menübezeichnungen dokumentieren ihren ursprünglichen Stand. Diese Änderung veröffentlicht keine neue App-Version und führt kein Server-Deployment aus.
